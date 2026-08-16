@@ -1,11 +1,10 @@
-#pragma once
 #include <torch/torch.h>
 #include <iostream>
 #include <vector>
 #include <random>
 #include <tuple>
 
-#include "include/dqn.h"
+#include "include/DQN.h"
 #include "include/ReplayBuffer.h"
 
 // --- Keep the DQN and ReplayBuffer structs from the previous code here ---
@@ -44,69 +43,120 @@ std::tuple<int, float, bool> env_step(int state, int action) {
 
 int main() {
     torch::Device device(torch::hasMPS() ? torch::kMPS : torch::kCPU);
-    ReplayBuffer buffer(1000);
-    
-    // 1. Initial State
-    int current_state_idx = 0; // Start at (0,0)
-    torch::Tensor current_state = encode_state(current_state_idx).to(device);
-    
-    // Agent chooses an action (hardcoded to '1' (Right) for this example)
-    int action = 1;
-    
-    // ==========================================
-    // STEP 2: Step (Interact with Environment)
-    // ==========================================
-    auto [next_state_idx, reward, done] = env_step(current_state_idx, action);
-    torch::Tensor next_state = encode_state(next_state_idx).to(device);
-    
-    std::cout << "Action taken: " << action << " | Reward: " << reward << " | Done: " << done << std::endl;
+    std::cout << "Training on: " << (torch::hasMPS() ? "MPS (Apple Silicon GPU)" : "CPU") << "\n\n";
 
-    // ==========================================
-    // STEP 3: Store (Save to Replay Buffer)
-    // ==========================================
-    buffer.push(current_state, action, reward, next_state, done);
-    
-    // Fast-forward: Let's fill the buffer with some random transitions so we have enough to sample
-    for(int i = 0; i < 50; i++) {
-        buffer.push(encode_state(i % 16).to(device), i % 4, 1.0f, encode_state((i + 1) % 16).to(device), false);
-    }
+    // Initialize Networks
+    auto main_network = std::make_shared<DQN>(16, 64, 4);
+    auto target_network = std::make_shared<DQN>(16, 64, 4);
+    main_network->to(device);
+    target_network->to(device);
 
-    // ==========================================
-    // STEP 4: Sample & Collate
-    // ==========================================
+    // Optimizer & Hyperparameters
+    torch::optim::Adam optimizer(main_network->parameters(), /*lr=*/1e-3);
+    ReplayBuffer buffer(10000);
+    float gamma = 0.99f;
     size_t batch_size = 32;
-    std::vector<Transition> batch = buffer.sample(batch_size);
+    int sync_target_every = 500;
+    int total_steps = 0;
+
+    // ---------------------------------------------------------
+    // PHASE 1: BURN-IN (Warm up the buffer with real data)
+    // ---------------------------------------------------------
+    std::cout << "--- Starting Burn-In Phase ---" << std::endl;
+    int current_state_idx = 0;
     
-    // Create separate C++ vectors to hold the tensors
-    std::vector<torch::Tensor> states_vec, next_states_vec, actions_vec, rewards_vec, dones_vec;
-    
-    for (const auto& t : batch) {
-        states_vec.push_back(t.state);
-        next_states_vec.push_back(t.next_state);
+    for (int i = 0; i < 1000; i++) {
+        int action = rand() % 4; // Pure random exploration
+        auto [next_state_idx, reward, done] = env_step(current_state_idx, action);
         
-        // Convert primitive types to 1D tensors
-        actions_vec.push_back(torch::tensor(t.action, torch::kInt64));
-        rewards_vec.push_back(torch::tensor(t.reward, torch::kFloat32));
+        buffer.push(encode_state(current_state_idx).to(device), action, reward, encode_state(next_state_idx).to(device), done);
         
-        // Convert boolean 'done' to a float (1.0 for true, 0.0 for false)
-        // This is crucial because we will multiply by (1 - done) in the Bellman equation later
-        dones_vec.push_back(torch::tensor(t.done ? 1.0f : 0.0f, torch::kFloat32)); 
+        current_state_idx = done ? 0 : next_state_idx;
+    }
+    std::cout << "Burn-in complete. Buffer size: " << buffer.size() << "\n\n";
+
+    // ---------------------------------------------------------
+    // PHASE 2: TRAINING LOOP
+    // ---------------------------------------------------------
+    std::cout << "--- Starting Training Phase ---" << std::endl;
+    current_state_idx = 0;
+
+    // Train for 2000 environment steps as a demonstration
+    for (int step = 0; step < 2000; step++) {
+        torch::Tensor current_state = encode_state(current_state_idx).to(device);
+        int action = 0;
+
+        // Epsilon-Greedy Action Selection (10% exploration)
+        if ((rand() % 100) < 10) {
+            action = rand() % 4;
+        } else {
+            torch::NoGradGuard no_grad;
+            torch::Tensor q_values = main_network->forward(current_state.unsqueeze(0));
+            action = torch::argmax(q_values, 1).item<int>();
+        }
+
+        // Interact & Store
+        auto [next_state_idx, reward, done] = env_step(current_state_idx, action);
+        buffer.push(current_state, action, reward, encode_state(next_state_idx).to(device), done);
+        
+        current_state_idx = done ? 0 : next_state_idx;
+
+        // --- SAMPLE & COLLATE ---
+        auto batch = buffer.sample(batch_size);
+        std::vector<torch::Tensor> states_vec, next_states_vec, actions_vec, rewards_vec, dones_vec;
+        
+        for (const auto& t : batch) {
+            states_vec.push_back(t.state);
+            next_states_vec.push_back(t.next_state);
+            actions_vec.push_back(torch::tensor(t.action, torch::kInt64));
+            rewards_vec.push_back(torch::tensor(t.reward, torch::kFloat32));
+            dones_vec.push_back(torch::tensor(t.done ? 1.0f : 0.0f, torch::kFloat32)); 
+        }
+        
+        torch::Tensor batched_states = torch::stack(states_vec).to(device);
+        torch::Tensor batched_next_states = torch::stack(next_states_vec).to(device);
+        torch::Tensor batched_actions = torch::stack(actions_vec).to(device);
+        torch::Tensor batched_rewards = torch::stack(rewards_vec).to(device);
+        torch::Tensor batched_dones = torch::stack(dones_vec).to(device);
+
+        // --- THE BELLMAN OPTIMIZATION STEP ---
+        // 1. Current Q-Values
+        torch::Tensor q_values = main_network->forward(batched_states);
+        torch::Tensor current_q = q_values.gather(1, batched_actions.unsqueeze(1)).squeeze(1);
+
+        // 2. Target Q-Values (from Target Network)
+        torch::Tensor max_next_q;
+        {
+            torch::NoGradGuard no_grad; 
+            torch::Tensor next_q_values = target_network->forward(batched_next_states);
+            max_next_q = std::get<0>(torch::max(next_q_values, 1));
+        }
+        torch::Tensor target_q = batched_rewards + (gamma * max_next_q * (1.0f - batched_dones));
+
+        // 3. Backpropagate Loss
+        torch::Tensor loss = torch::mse_loss(current_q, target_q);
+        optimizer.zero_grad();
+        loss.backward();
+        optimizer.step();
+
+        // --- TARGET NETWORK SYNC ---
+        total_steps++;
+        if (total_steps % sync_target_every == 0) {
+            torch::autograd::GradMode::set_enabled(false);
+            auto new_params = main_network->named_parameters();
+            auto target_params = target_network->named_parameters(true);
+            
+            for (auto& val : new_params) {
+                auto name = val.key();
+                auto* t = target_params.find(name);
+                if (t != nullptr) t->copy_(val.value());
+            }
+            torch::autograd::GradMode::set_enabled(true);
+            std::cout << "[Step " << total_steps << "] Target Network Synced. Recent Loss: " << loss.item<float>() << std::endl;
+        }
     }
     
-    // Stack the vectors into batched PyTorch tensors and move to GPU
-    torch::Tensor batched_states = torch::stack(states_vec).to(device);
-    torch::Tensor batched_next_states = torch::stack(next_states_vec).to(device);
-    torch::Tensor batched_actions = torch::stack(actions_vec).to(device);
-    torch::Tensor batched_rewards = torch::stack(rewards_vec).to(device);
-    torch::Tensor batched_dones = torch::stack(dones_vec).to(device);
-    
-    // Output the tensor shapes to verify
-    std::cout << "\n--- Batched Tensor Shapes ---" << std::endl;
-    std::cout << "States shape:      " << batched_states.sizes() << std::endl;
-    std::cout << "Actions shape:     " << batched_actions.sizes() << std::endl;
-    std::cout << "Rewards shape:     " << batched_rewards.sizes() << std::endl;
-    std::cout << "Next States shape: " << batched_next_states.sizes() << std::endl;
-    std::cout << "Dones shape:       " << batched_dones.sizes() << std::endl;
+    std::cout << "\nTraining Complete!" << std::endl;
 
     return 0;
 }

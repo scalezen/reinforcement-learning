@@ -81,13 +81,22 @@ int main() {
     std::cout << "--- Starting Training Phase ---" << std::endl;
     current_state_idx = 0;
 
+    // Variables to track outside your environment loop
+    float current_episode_reward = 0.0f;
+    int current_episode_length = 0;
+    int episodes_completed = 0;
+
     // Train for 2000 environment steps as a demonstration
-    for (int step = 0; step < 2000; step++) {
+    // Train for 5000 environment steps as a demonstration
+    //for (int step = 0; step < 2000; step++) {
+    for (int step = 0; step < 5000; step++) {
         torch::Tensor current_state = encode_state(current_state_idx).to(device);
         int action = 0;
+        float epsilon = std::max(0.01f, 1.0f - (step / 4000.0f));
 
         // Epsilon-Greedy Action Selection (10% exploration)
-        if ((rand() % 100) < 10) {
+        //if ((rand() % 100) < 10) {
+        if ((rand() % 100) < (epsilon * 100)) {
             action = rand() % 4;
         } else {
             torch::NoGradGuard no_grad;
@@ -99,7 +108,23 @@ int main() {
         auto [next_state_idx, reward, done] = env_step(current_state_idx, action);
         buffer.push(current_state, action, reward, encode_state(next_state_idx).to(device), done);
         
-        current_state_idx = done ? 0 : next_state_idx;
+        current_episode_reward += reward;
+        current_episode_length++;
+
+        if(done)
+        {
+            current_state_idx = 0;
+            episodes_completed++;
+            std::cout << "[Episode " << episodes_completed 
+                  << "] Total Reward: " << current_episode_reward 
+                  << " | Steps Taken: " << current_episode_length << std::endl;
+        
+            // Reset for the next episode
+            current_episode_reward = 0.0f;
+            current_episode_length = 0;
+        }
+        else
+             current_state_idx = next_state_idx;
 
         // --- SAMPLE & COLLATE ---
         auto batch = buffer.sample(batch_size);
@@ -137,6 +162,11 @@ int main() {
         torch::Tensor loss = torch::mse_loss(current_q, target_q);
         optimizer.zero_grad();
         loss.backward();
+        
+        //Gradient clipping to avoid policy collapse - Cap the gradients at a maximum 
+        //norm of 1.0 to prevent explosions
+        torch::nn::utils::clip_grad_norm_(main_network->parameters(), 1.0);
+
         optimizer.step();
 
         // --- TARGET NETWORK SYNC ---
@@ -157,6 +187,56 @@ int main() {
     }
     
     std::cout << "\nTraining Complete!" << std::endl;
+
+    // ---------------------------------------------------------
+    // PHASE 3: EVALUATION (Test the Trained Network)
+    // ---------------------------------------------------------
+    std::cout << "\n--- Starting Evaluation (Testing the Learned Policy) ---" << std::endl;
+    
+    // 1. Put the network in evaluation mode
+    main_network->eval(); 
+    
+    // 2. Start at the origin
+    int eval_state_idx = 0;
+    int step_count = 0;
+    bool eval_done = false;
+    
+    std::cout << "Path taken: ";
+
+    // We use a NoGradGuard to ensure no memory is wasted tracking gradients during testing
+    {
+        torch::NoGradGuard no_grad; 
+        
+        while (!eval_done && step_count < 10) { // Limit to 10 steps to prevent infinite loops if it didn't learn
+            // Print current position
+            std::cout << "(" << (eval_state_idx / 4) << "," << (eval_state_idx % 4) << ") -> ";
+            
+            // Pass the state to the network
+            torch::Tensor state_tensor = encode_state(eval_state_idx).to(device);
+            torch::Tensor q_values = main_network->forward(state_tensor.unsqueeze(0));
+            
+            // Strictly Exploit: Take the action with the absolute highest Q-value
+            int best_action = torch::argmax(q_values, 1).item<int>();
+            
+            // Take the step in the environment
+            auto [next_state_idx, reward, done] = env_step(eval_state_idx, best_action);
+            
+            eval_state_idx = next_state_idx;
+            eval_done = done;
+            step_count++;
+        }
+    }
+    
+    // Print the final outcome
+    std::cout << "(" << (eval_state_idx / 4) << "," << (eval_state_idx % 4) << ")" << std::endl;
+    
+    if (eval_state_idx == GOAL_STATE) {
+        std::cout << "Result: [SUCCESS] Agent navigated to the Goal in " << step_count << " steps." << std::endl;
+    } else if (eval_state_idx == TRAP_STATE) {
+        std::cout << "Result: [FAILED] Agent fell into the Trap." << std::endl;
+    } else {
+        std::cout << "Result: [TIMEOUT] Agent wandered aimlessly." << std::endl;
+    }
 
     return 0;
 }

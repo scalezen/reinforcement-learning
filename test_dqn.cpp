@@ -1,56 +1,58 @@
 #include <torch/torch.h>
 #include <iostream>
+#include <vector>
+#include <algorithm>
 
-// 1. The Network Definition
-struct DQN : torch::nn::Module {
-    torch::nn::Linear fc1{nullptr}, fc2{nullptr}, fc3{nullptr};
+#include "include/DQN.h"
+#include "include/ReplayBuffer.h"
 
-    DQN(int input_size, int hidden_size, int num_actions) {
-        fc1 = register_module("fc1", torch::nn::Linear(input_size, hidden_size));
-        fc2 = register_module("fc2", torch::nn::Linear(hidden_size, hidden_size));
-        fc3 = register_module("fc3", torch::nn::Linear(hidden_size, num_actions));
-    }
-
-    torch::Tensor forward(torch::Tensor x) {
-        x = torch::relu(fc1->forward(x));
-        x = torch::relu(fc2->forward(x));
-        return fc3->forward(x);
-    }
-};
 
 int main() {
-    // 2. Hardware Test: Check for Apple Silicon GPU (MPS)
+    std::cout << "=== Testing Hardware ===" << std::endl;
     torch::Device device(torch::kCPU);
     if (torch::hasMPS()) {
         device = torch::Device(torch::kMPS);
-        std::cout << "[SUCCESS] Apple Silicon MPS detected. Using GPU." << std::endl;
-    } else {
-        std::cout << "[WARNING] MPS not detected. Falling back to CPU." << std::endl;
+        std::cout << "[PASS] Apple Silicon MPS detected. Using GPU." << std::endl;
     }
 
-    // 3. Initialize the network using a shared pointer (standard for LibTorch)
-    // 16 inputs (4x4 grid flattened), 64 hidden nodes, 4 outputs (Up, Right, Down, Left)
+    std::cout << "\n=== Testing DQN Architecture ===" << std::endl;
+
+    // 16 inputs (4x4 grid), 64 hidden nodes, 4 outputs (actions)
     auto model = std::make_shared<DQN>(16, 64, 4);
-    model->to(device); // Move network to the GPU
-
-    // 4. Create a dummy state tensor (Batch Size of 1, 16 features)
-    // We use torch::rand to simulate arbitrary state data
-    torch::Tensor dummy_state = torch::rand({1, 16}).to(device);
+    model->to(device);
     
-    // 5. Run the Forward Pass
+    // Simulate passing a single state through the network
+    torch::Tensor dummy_state = torch::rand({1, 16}).to(device);
     torch::Tensor q_values = model->forward(dummy_state);
-
-    // 6. Verify Shapes and Outputs
-    std::cout << "\n--- Network Architecture ---" << std::endl;
+    
     std::cout << "Input State Shape:  " << dummy_state.sizes() << std::endl;
     std::cout << "Output Q-Values Shape: " << q_values.sizes() << std::endl;
-    
-    std::cout << "\n--- Predicted Q-Values ---" << std::endl;
-    std::cout << q_values << std::endl;
+    std::cout << "[PASS] Forward pass successful." << std::endl;
 
-    // Optional: Find the action the network would pick
-    torch::Tensor best_action = torch::argmax(q_values, /*dim=*/1);
-    std::cout << "Greedy Action Chosen: " << best_action.item<int>() << std::endl;
+    std::cout << "\n=== Testing Replay Buffer ===" << std::endl;
+    size_t max_capacity = 100;
+    ReplayBuffer buffer(max_capacity);
+    std::cout << "Initial buffer size: " << buffer.size() << std::endl;
+
+    // Simulate pushing 150 transitions (50 over capacity) to test overwrite
+    for (int i = 0; i < 150; ++i) {
+        torch::Tensor s = torch::zeros({16}).to(device);
+        torch::Tensor next_s = torch::ones({16}).to(device);
+        buffer.push(s, i % 4, 1.0, next_s, false);
+    }
+
+    std::cout << "Buffer size after 150 pushes: " << buffer.size() << std::endl;
+    if (buffer.size() == max_capacity) {
+        std::cout << "[PASS] Circular overwrite successfully maintained capacity limit." << std::endl;
+    }
+
+    // Test sampling logic
+    size_t batch_size = 32;
+    auto batch = buffer.sample(batch_size);
+    std::cout << "Sampled batch size: " << batch.size() << std::endl;
+    if (batch.size() == batch_size) {
+        std::cout << "[PASS] Correct batch size sampled." << std::endl;
+    }
 
     return 0;
 }

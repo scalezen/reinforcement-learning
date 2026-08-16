@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <iomanip>
 
+#include "include/DQN.h"
+
 using namespace std;
 
 // Hyperparameters

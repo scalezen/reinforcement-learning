@@ -1,101 +1,58 @@
+#include <torch/torch.h>
 #include <iostream>
 #include <vector>
-#include <random>
 #include <algorithm>
-#include <iomanip>
 
 #include "include/DQN.h"
+#include "include/ReplayBuffer.h"
 
-using namespace std;
-
-// Hyperparameters
-const double ALPHA = 0.1;    // Learning Rate
-const double GAMMA = 0.99;   // Discount Factor
-const double EPSILON = 0.1;  // Exploration probability
-const int EPISODES = 1000;
-
-// Environment: 4x4 Grid
-const int ROWS = 4;
-const int COLS = 4;
-const int NUM_STATES = ROWS * COLS;
-const int NUM_ACTIONS = 4; // 0=Up, 1=Right, 2=Down, 3=Left
-
-const int GOAL_STATE = 15; // Bottom-right corner
-const int TRAP_STATE = 5;  // Somewhere in the middle
-
-// Environment transition function
-pair<int, double> step(int state, int action) {
-    if (state == GOAL_STATE || state == TRAP_STATE) {
-        return {state, 0.0}; // Terminal states
-    }
-    
-    int row = state / COLS;
-    int col = state % COLS;
-    
-    // Attempt move
-    if (action == 0 && row > 0) row--;
-    else if (action == 1 && col < COLS - 1) col++;
-    else if (action == 2 && row < ROWS - 1) row++;
-    else if (action == 3 && col > 0) col--;
-    
-    int next_state = row * COLS + col;
-    double reward = -1.0; // Penalty for every step taken to encourage speed
-    
-    if (next_state == GOAL_STATE) reward = 100.0;
-    else if (next_state == TRAP_STATE) reward = -100.0;
-    
-    return {next_state, reward};
-}
 
 int main() {
-    // Initialize Q-Table to 0
-    vector<vector<double>> q_table(NUM_STATES, vector<double>(NUM_ACTIONS, 0.0));
-    
-    random_device rd;
-    mt19937 gen(rd());
-    uniform_real_distribution<> dis(0.0, 1.0);
-    uniform_int_distribution<> act_dis(0, NUM_ACTIONS - 1);
-    
-    // Training Loop
-    for (int ep = 0; ep < EPISODES; ++ep) {
-        int state = 0; // Always start at (0,0)
-        
-        while (state != GOAL_STATE && state != TRAP_STATE) {
-            int action = 0;
-            
-            // Epsilon-greedy action selection
-            if (dis(gen) < EPSILON) {
-                action = act_dis(gen); // Explore
-            } else {
-                // Exploit (choose best known action)
-                action = distance(q_table[state].begin(), max_element(q_table[state].begin(), q_table[state].end()));
-            }
-            
-            auto [next_state, reward] = step(state, action);
-            
-            // The Math: Bellman Q-Learning update rule
-            double max_next_q = *max_element(q_table[next_state].begin(), q_table[next_state].end());
-            q_table[state][action] = q_table[state][action] + ALPHA * (reward + GAMMA * max_next_q - q_table[state][action]);
-            
-            state = next_state;
-        }
+    std::cout << "=== Testing Hardware ===" << std::endl;
+    torch::Device device(torch::kCPU);
+    if (torch::hasMPS()) {
+        device = torch::Device(torch::kMPS);
+        std::cout << "[PASS] Apple Silicon MPS detected. Using GPU." << std::endl;
     }
+
+    std::cout << "\n=== Testing DQN Architecture ===" << std::endl;
+
+    // 16 inputs (4x4 grid), 64 hidden nodes, 4 outputs (actions)
+    auto model = std::make_shared<DQN>(16, 64, 4);
+    model->to(device);
     
-    // Output the learned policy
-    cout << "Learned Policy (U: Up, R: Right, D: Down, L: Left, G: Goal, T: Trap):\n\n";
-    const char actions[] = {'U', 'R', 'D', 'L'};
+    // Simulate passing a single state through the network
+    torch::Tensor dummy_state = torch::rand({1, 16}).to(device);
+    torch::Tensor q_values = model->forward(dummy_state);
     
-    for (int r = 0; r < ROWS; ++r) {
-        for (int c = 0; c < COLS; ++c) {
-            int s = r * COLS + c;
-            if (s == GOAL_STATE) cout << " G ";
-            else if (s == TRAP_STATE) cout << " T ";
-            else {
-                int best_action = distance(q_table[s].begin(), max_element(q_table[s].begin(), q_table[s].end()));
-                cout << " " << actions[best_action] << " ";
-            }
-        }
-        cout << "\n";
+    std::cout << "Input State Shape:  " << dummy_state.sizes() << std::endl;
+    std::cout << "Output Q-Values Shape: " << q_values.sizes() << std::endl;
+    std::cout << "[PASS] Forward pass successful." << std::endl;
+
+    std::cout << "\n=== Testing Replay Buffer ===" << std::endl;
+    size_t max_capacity = 100;
+    ReplayBuffer buffer(max_capacity);
+    std::cout << "Initial buffer size: " << buffer.size() << std::endl;
+
+    // Simulate pushing 150 transitions (50 over capacity) to test overwrite
+    for (int i = 0; i < 150; ++i) {
+        torch::Tensor s = torch::zeros({16}).to(device);
+        torch::Tensor next_s = torch::ones({16}).to(device);
+        buffer.push(s, i % 4, 1.0, next_s, false);
     }
+
+    std::cout << "Buffer size after 150 pushes: " << buffer.size() << std::endl;
+    if (buffer.size() == max_capacity) {
+        std::cout << "[PASS] Circular overwrite successfully maintained capacity limit." << std::endl;
+    }
+
+    // Test sampling logic
+    size_t batch_size = 32;
+    auto batch = buffer.sample(batch_size);
+    std::cout << "Sampled batch size: " << batch.size() << std::endl;
+    if (batch.size() == batch_size) {
+        std::cout << "[PASS] Correct batch size sampled." << std::endl;
+    }
+
     return 0;
 }

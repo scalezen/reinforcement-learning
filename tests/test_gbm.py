@@ -4,7 +4,12 @@ import random
 
 import pytest
 
-import ..gbm.py
+from gbm import (
+    simulate_gbm,
+    simulate_gbm_vectorised,
+    european_call_mc,
+    black_scholes_call,
+)
 
 
 @pytest.fixture
@@ -120,3 +125,7 @@ def test_seed(gbm_params):
     ), "Same seed generates different paths."
 
 
+def test_bs_call(gbm_params):
+    # Tests, with S0=100, K=100, r=0.05, sigma=0.2, T=1.0, n_paths=200_000:
+    bs_call_price = black_scholes_call(S0=100, K=100, r=0.05, sigma=0.2, T=1.0)
+    assert math.isclose(bs_call_price, 10.4506, abs_tol=1e-4)

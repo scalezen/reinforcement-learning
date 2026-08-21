@@ -128,4 +128,170 @@ def test_seed(gbm_params):
 def test_bs_call(gbm_params):
     # Tests, with S0=100, K=100, r=0.05, sigma=0.2, T=1.0, n_paths=200_000:
     bs_call_price = black_scholes_call(S0=100, K=100, r=0.05, sigma=0.2, T=1.0)
+    print(f"bs_call_price = {bs_call_price}")
     assert math.isclose(bs_call_price, 10.4506, abs_tol=1e-4)
+
+
+def test_mc_call():
+
+    S0 = 100
+    K = 100
+    r = 0.05
+    sigma = 0.2
+    T = 1.0
+
+    n_paths = 200_000
+    n_steps = int(T / 0.002)
+    seed = 1
+
+    mc_call_price, mc_std_error = european_call_mc(
+        S0=S0, K=K, r=r, sigma=sigma, T=T, n_paths=n_paths, n_steps=n_steps, seed=seed
+    )
+
+    bs_price = black_scholes_call(S0=S0, K=K, r=r, sigma=sigma, T=T)
+
+    print(f"mc price = {mc_call_price}")
+    print(f"mc_std_error = {mc_std_error}")
+    print(f"bs price = {bs_price}")
+
+    print(f"se/price = {mc_std_error/mc_call_price}")
+
+    assert (
+        abs(mc_call_price - bs_price) < 3.0 * mc_std_error
+    ), "MC price and BS price don't agree."
+
+    # fraction of paths ending out of the money
+    paths = simulate_gbm_vectorised(
+        S0=S0, r=r, sigma=sigma, T=T, n_steps=n_steps, n_paths=n_paths, seed=seed
+    )
+    payoffs = np.exp(-r * T) * np.maximum(paths[:, -1] - K, 0.0)
+    n_positive = np.sum(payoffs > 0.0)
+
+    print(f"fraction of paths in the money: {n_positive/n_paths}")
+
+
+def test_oom():
+
+    S0 = 100
+    K = 150
+    r = 0.05
+    sigma = 0.2
+    T = 1.0
+
+    n_paths = 200_000
+    n_steps = int(T / 0.002)
+    seed = 1
+
+    mc_call_price, mc_std_error = european_call_mc(
+        S0=S0, K=K, r=r, sigma=sigma, T=T, n_paths=n_paths, n_steps=n_steps, seed=seed
+    )
+
+    bs_price = black_scholes_call(S0=S0, K=K, r=r, sigma=sigma, T=T)
+
+    print(f"mc price = {mc_call_price}")
+    print(f"mc_std_error = {mc_std_error}")
+    print(f"bs price = {bs_price}")
+
+    assert math.isclose(
+        bs_price, 0.3599, abs_tol=1e-3
+    ), "Unexpected price for out of the money option"
+    assert (
+        abs(mc_call_price - bs_price) < 3.0 * mc_std_error
+    ), "MC price and BS price don't agree."
+
+    print(f"se/price = {mc_std_error/mc_call_price}")
+
+    # fraction of paths ending out of the money
+    paths = simulate_gbm_vectorised(
+        S0=S0, r=r, sigma=sigma, T=T, n_steps=n_steps, n_paths=n_paths, seed=seed
+    )
+    payoffs = np.exp(-r * T) * np.maximum(paths[:, -1] - K, 0.0)
+    n_positive = np.sum(payoffs > 0.0)
+
+    print(f"fraction of paths that ended up in the money: {n_positive/n_paths}")
+
+
+def test_put_call_parity():
+
+    S0 = 100
+    K = 100
+    r = 0.05
+    sigma = 0.2
+    T = 1.0
+    n_steps = int(T / 0.002)
+    n_paths = 200_000
+    seed = 0
+
+    # fraction of paths ending out of the money
+    paths = simulate_gbm_vectorised(
+        S0=S0, r=r, sigma=sigma, T=T, n_steps=n_steps, n_paths=n_paths, seed=seed
+    )
+
+    # assuming payoff is max(S-K, 0.0), evaluate on the simulated paths
+    call_payoffs = np.exp(-r * T) * np.maximum(paths[:, -1] - K, 0.0)
+    mean_call_price = np.mean(call_payoffs)
+
+    # assuming payoff is max(S-K, 0.0), evaluate on the simulated paths
+    put_payoffs = np.exp(-r * T) * np.maximum(K - paths[:, -1], 0.0)
+    mean_put_price = np.mean(put_payoffs)
+
+    # check put call parity
+    lhs = mean_call_price - mean_put_price
+    rhs = S0 - K * np.exp(-r * T)
+    print(f"put call parity, lhs, C-P= {lhs}")
+    print(f"put call parity, rhs, (S_0-K*exp(-rT)) = {rhs}")
+
+    standard_error = np.std(paths[:, -1], ddof=1) / np.sqrt(n_paths)
+    assert abs(lhs - rhs) < 3 * standard_error, "Put-call parity doesn't hold"
+    print(f"put call parity - test I passed.")
+
+    # check put call parity - II
+    rhs = np.exp(-r * T) * (np.mean(paths[:, -1]) - K)  # exp(-rT)*(S_T - K)
+    print(f"lhs = {lhs}, rhs = {rhs}")
+    assert abs(lhs - rhs) < 1e-12, "Put-call parity doesn't hold"
+
+    print(f"put call parity - test II passed.")
+
+
+def test_sanity_analytical_gbm():
+    S0 = 100
+    K = 100
+    r = 0.05
+    sigma = 0.2
+    T = 1.0
+    n_steps = int(T / 0.002)
+    n_paths = 200_000
+    seed = 0
+
+    # fraction of paths ending out of the money
+    paths = simulate_gbm_vectorised(
+        S0=S0, r=r, sigma=sigma, T=T, n_steps=n_steps, n_paths=n_paths, seed=seed
+    )
+    S_T = np.mean(paths[:, -1])
+
+    paths_single_step = simulate_gbm_vectorised(
+        S0=S0, r=r, sigma=sigma, T=T, n_steps=1, n_paths=n_paths, seed=seed
+    )
+    S_T_single_step = np.mean(paths_single_step[:, 1])
+
+    print(f"S_T = {S_T}, S_T_single_step = {S_T_single_step}")
+
+    statistical_sig = 1e-4  # TODO: calculate
+    assert (
+        np.abs(S_T - S_T_single_step) < statistical_sig
+    ), "Number of time-steps seems to matter for analytical gbm."
+
+
+if __name__ == "__main__":
+    # force run tests
+
+    # test_mc_call()
+    # print("done running test_mc_call")
+
+    # test_oom()
+    # print("done running test_oom")
+
+    # test_put_call_parity()
+    # print("done running test_put_call_parity")
+
+    test_sanity_analytical_gbm()

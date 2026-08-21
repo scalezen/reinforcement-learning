@@ -16,7 +16,7 @@ def simulate_gbm(S0, r, sigma, T, n_steps, n_paths, seed=None):
     if seed is not None:
         random.seed(seed)
 
-    output = np.empty((n_paths, n_steps + 1), dtype=np.float32)
+    output = np.empty((n_paths, n_steps + 1), dtype=np.float64)
 
     step_size = T / n_steps
 
@@ -45,7 +45,7 @@ def simulate_gbm_vectorised(S0, r, sigma, T, n_steps, n_paths, seed=None):
     if seed is not None:
         np.random.seed(seed)
 
-    output = np.empty((n_paths, n_steps + 1), dtype=np.float32)
+    output = np.empty((n_paths, n_steps + 1), dtype=np.float64)
 
     step_size = T / n_steps
 
@@ -62,21 +62,22 @@ def simulate_gbm_vectorised(S0, r, sigma, T, n_steps, n_paths, seed=None):
     return output
 
 
-def european_call_mc(S0, K, r, sigma, T, n_paths, seed=None) -> dict[str, float]:
+def european_call_mc(
+    S0, K, r, sigma, T, n_paths, n_steps, seed=None
+) -> tuple[float, float]:
     """
     Price a European call by Monte Carlo under GBM.
 
     Returns (price, se): the discounted mean payoff and its standard error.
 
     """
-    n_steps = int(T / 0.002)
 
     paths = simulate_gbm_vectorised(
         S0=S0, r=r, sigma=sigma, T=T, n_steps=n_steps, n_paths=n_paths, seed=seed
     )
 
     # price = exp(-r*T) * mean(max(S_T - K, 0))
-    payoffs = np.exp(-r * T) * np.mean(np.maximum(paths[:, -1] - K, 0.0))
+    payoffs = np.exp(-r * T) * np.maximum(paths[:, -1] - K, 0.0)
     mean_price = np.mean(payoffs)
 
     # se    = exp(-r*T) * std(payoff, ddof=1) / sqrt(n_paths)

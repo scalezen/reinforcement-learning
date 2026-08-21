@@ -8,5 +8,6 @@ dependencies:
   - torchvision
   - torchaudio
   - pytest
+  - scipy
   - black
 

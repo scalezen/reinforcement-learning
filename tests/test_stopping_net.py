@@ -1,4 +1,6 @@
-import StoppingNet
+import torch
+from gbm import simulate_gbm_vectorised
+from StoppingNet import price_final_date_only, train_stopping_net, StoppingNet
 
 
 def test_stopping_net():
@@ -36,7 +38,7 @@ def test_price_final_date_only():
 
     K = 100
 
-    mean_payoff, se = price_final_date_only(
+    mean_payoff, se = StoppingNet.price_final_date_only(
         S0=S0,
         K=K,
         r=r,
@@ -91,10 +93,37 @@ def test_price_final_date_different_seeds():
         se + se_one
     ), "Payoff computed from trained network is not within 3*se of expected value."
 
+def test_continuation_value():
+    S0 = 100
+    r = 0.05
+    sigma = 0.2
+    T = 1.0
+    n_steps = 1
+    n_paths = 1000
+    K = 100
+    continuation_val = 20.0 #None # 20.0
+
+    seed = 0
+    mean_payoff, se = price_final_date_only(
+        S0=S0,
+        K=K,
+        continuation_val=continuation_val,
+        r=r,
+        sigma=sigma,
+        T=T,
+        n_paths_train=100_000,
+        n_paths_eval=200_000,
+        seed=seed,
+    )
+
+    print(f"mean_payoff = {mean_payoff}")
+
 
 if __name__ == "__main__":
     # test_stopping_net()
 
-    test_price_final_date_only()
+    #test_price_final_date_only()
 
     # test_price_final_date_different_seeds()
+
+    test_continuation_value()

@@ -92,7 +92,7 @@ def train_stopping_net(
     return net
 
 
-def price_final_date_only(S0, K, r, sigma, T, n_paths_train, n_paths_eval, seed):
+def price_final_date_only(S0, K, r, sigma, T, n_paths_train, n_paths_eval, seed, continuation_val=None):
     """
     Price a Bermudan that may only be exercised at T.
 
@@ -110,7 +110,13 @@ def price_final_date_only(S0, K, r, sigma, T, n_paths_train, n_paths_eval, seed)
     payoff = np.exp(-r * T) * torch.tensor(
         np.maximum(K - S_T, 0.0), dtype=torch.float32
     )
-    continuation = torch.zeros(n_paths_train, dtype=torch.float32)
+
+    if not continuation_val:
+        continuation_val = 0.0
+        continuation = torch.zeros(n_paths_train, dtype=torch.float32)
+    else:
+        print(f"price_final_date, got continuation value {continuation_val}")
+        continuation = torch.full((n_paths_train,), continuation_val, dtype=torch.float32)
 
     trained_net = train_stopping_net(
         StoppingNet(d=1), S_T, payoff, continuation, 0.3, n_epochs=10, batch=8192
@@ -130,7 +136,9 @@ def price_final_date_only(S0, K, r, sigma, T, n_paths_train, n_paths_eval, seed)
         result = trained_net.forward(
             torch.tensor(S_T_eval[:, -1], dtype=torch.float32).reshape(n_paths_eval, 1)
         )
-        payoff_conditioned = payoff_eval.squeeze(-1) * result
+        exercise = (result > 0.5).float()
+        continuation = torch.full((n_paths_eval,), continuation_val, dtype=torch.float32)
+        payoff_conditioned = payoff_eval.squeeze(-1) * exercise + continuation.squeeze(-1) * (1 - exercise)
 
         # print(f'shape of logits result {result.shape}')
         # print(f'shape of payoff_eval result {payoff_eval.shape}')

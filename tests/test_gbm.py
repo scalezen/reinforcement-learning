@@ -268,17 +268,20 @@ def test_sanity_analytical_gbm():
         S0=S0, r=r, sigma=sigma, T=T, n_steps=n_steps, n_paths=n_paths, seed=seed
     )
     S_T = np.mean(paths[:, -1])
+    mc_standard_error = np.std(paths[:,-1], ddof=1)/np.sqrt(n_paths)
 
     paths_single_step = simulate_gbm_vectorised(
         S0=S0, r=r, sigma=sigma, T=T, n_steps=1, n_paths=n_paths, seed=seed
     )
     S_T_single_step = np.mean(paths_single_step[:, 1])
+    mc_single_path_standard_error = np.std(paths[:,-1], ddof=1)/np.sqrt(n_paths)
 
     print(f"S_T = {S_T}, S_T_single_step = {S_T_single_step}")
 
-    statistical_sig = 1e-4  # TODO: calculate
+    # Var(X-Y) = Var(X) + Var(Y) => std_error(X-Y) = std_error(X) + std_error(Y)
+    statistical_sig = mc_standard_error + mc_single_path_standard_error  
     assert (
-        np.abs(S_T - S_T_single_step) < statistical_sig
+        np.abs(S_T - S_T_single_step) < 3.0*statistical_sig
     ), "Number of time-steps seems to matter for analytical gbm."
 
 
@@ -295,3 +298,4 @@ if __name__ == "__main__":
     # print("done running test_put_call_parity")
 
     test_sanity_analytical_gbm()
+    print("done running test_sanity_analytical_gbm()")

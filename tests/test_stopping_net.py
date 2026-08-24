@@ -3,7 +3,9 @@ from loguru import logger
 
 import torch
 from gbm import simulate_gbm_vectorised
-from StoppingNet import price_final_date_only, train_stopping_net, StoppingNet
+from StoppingNet import (price_final_date_only, 
+                         train_stopping_net, StoppingNet,
+                         price_bermudan_two_dates)
 
 
 def test_stopping_net():
@@ -118,6 +120,27 @@ def test_continuation_value():
 
     assert math.isclose(mean_payoff, continuation_val), "mean_payoff doesn't match continuation value, net training is off."
 
+def test_price_bermudan_two_dates():
+    S0 = 100
+    r = 0.05
+    sigma = 0.2
+    T = 1.0
+    K = 100
+
+    mean_price, se = price_bermudan_two_dates(S0=S0, 
+                                              K=K, 
+                                              r=r, 
+                                              sigma=sigma, 
+                                              T=T, 
+                                              n_paths_train=100_000, 
+                                              n_paths_eval=100_000,
+                                              seed_train=0, 
+                                              seed_eval=1, 
+                                              n_epochs=50)
+
+    # TODO - implement black-scholes put and show bermudan pv > european pv.
+    assert mean_price > 5.3, f"! bermudan PV: {mean_price} > european PV), check network stopping condition."
+
 if __name__ == "__main__":
     # DEBUGGING only - force run tests
     # test_stopping_net()
@@ -126,4 +149,6 @@ if __name__ == "__main__":
 
     # test_price_final_date_different_seeds()
 
-    test_continuation_value()
+    #test_continuation_value()
+
+    test_price_bermudan_two_dates()

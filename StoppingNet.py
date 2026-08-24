@@ -1,8 +1,9 @@
+import math
+from loguru import logger
 import numpy as np
 import torch
 from torch import nn
 from gbm import simulate_gbm_vectorised
-
 
 class StoppingNet(nn.Module):
     """
@@ -69,24 +70,24 @@ def train_stopping_net(
 
             # Forward pass
             logits = net.forward(torch.tensor(S_at_date[indices]))
-            # print(f"computed logits")
+            logger.info(f"computed logits")
 
             # Initialize the loss function
             loss = -(
                 curr_payoff_val[indices] * logits
                 + continuation_val[indices] * (1 - logits)
             ).mean()
-            # print(f"computed loss")
+            logger.info(f"computed loss")
 
             # Backpropagation
             optimizer.zero_grad()
-            # print(f"finished calling zero_grad() on optimizer.")
+            logger.info(f"finished calling zero_grad() on optimizer.")
 
             loss.backward()
-            # print(f"after calling loss.backward()")
+            logger.info(f"after calling loss.backward()")
 
             optimizer.step()
-            # print(f"after calling optimizer.step()")
+            logger.info(f"after calling optimizer.step()")
 
     net.eval()  # BatchNorm uses running stats
     return net
@@ -103,13 +104,11 @@ def price_final_date_only(S0, K, r, sigma, T, n_paths_train, n_paths_eval, seed,
     """
     n_steps = int(T / 0.002)
     S_T = simulate_gbm_vectorised(S0, r, sigma, T, n_steps, n_paths_train, seed=seed)
-    S_T = torch.tensor(S_T[:, -1], dtype=torch.float32).reshape((n_paths_train, 1))
+    S_T = torch.tensor(S_T[:, -1], dtype=torch.float32).reshape((n_paths_train, 1)) # S_T is a torch tensor
 
-    # print(f"shape of training tensor S_T: {S_T.shape}")
+    logger.info(f"shape of training tensor S_T: {S_T.shape}")
 
-    payoff = np.exp(-r * T) * torch.tensor(
-        np.maximum(K - S_T, 0.0), dtype=torch.float32
-    )
+    payoff = math.exp(-r * T) * torch.clamp(K - S_T, min=0.0)
 
     if not continuation_val:
         continuation_val = 0.0
@@ -125,27 +124,23 @@ def price_final_date_only(S0, K, r, sigma, T, n_paths_train, n_paths_eval, seed,
     S_T_eval = simulate_gbm_vectorised(
         S0, r, sigma, T, n_steps, n_paths_eval, seed=seed
     )
-    standard_error = np.std(S_T_eval[:, -1]) / np.sqrt(n_paths_eval)
+    S_T_eval = torch.tensor(S_T_eval[:,-1], dtype=torch.float32).reshape(n_paths_eval, 1) # S_T_eval is a torch tensor
+    standard_error = S_T_eval.std() / math.sqrt(n_paths_eval)
 
-    payoff_eval = np.exp(-r * T) * np.maximum(K - S_T_eval[:, -1], 0.0)
-    payoff_eval = torch.tensor(payoff_eval, dtype=torch.float32).reshape(
-        n_paths_eval, 1
-    )
-
+    payoff_eval = math.exp(-r * T) * torch.clamp(K - S_T_eval, min=0.0)
+   
     with torch.no_grad():
-        result = trained_net.forward(
-            torch.tensor(S_T_eval[:, -1], dtype=torch.float32).reshape(n_paths_eval, 1)
-        )
+        result = trained_net.forward(S_T_eval)
         exercise = (result > 0.5).float()
         continuation = torch.full((n_paths_eval,), continuation_val, dtype=torch.float32)
         payoff_conditioned = payoff_eval.squeeze(-1) * exercise + continuation.squeeze(-1) * (1 - exercise)
 
-        # print(f'shape of logits result {result.shape}')
-        # print(f'shape of payoff_eval result {payoff_eval.shape}')
+        # logger.info(f'shape of logits result {result.shape}')
+        # logger.info(f'shape of payoff_eval result {payoff_eval.shape}')
 
         mean_payoff = torch.sum(payoff_conditioned) / n_paths_eval
 
-        # print(f"mean_payoff = {mean_payoff}")
+        # logger.info(f"mean_payoff = {mean_payoff}")
 
         # disagreement rate
         payoff_eval_squeezed = payoff_eval.squeeze(-1)
@@ -153,7 +148,7 @@ def price_final_date_only(S0, K, r, sigma, T, n_paths_train, n_paths_eval, seed,
         positive_exercise = result > 0.5
         count_agreement = (positive_payoffs == positive_exercise).float().mean()
 
-        # print(f"disagreement rate between the net and analytically = {1 - count_agreement}")
+        logger.info(f"disagreement rate between the net and analytically = {1 - count_agreement}")
 
         disagreement_mask = positive_payoffs != positive_exercise
         disagreement_payoffs = payoff_eval_squeezed[disagreement_mask]
@@ -161,13 +156,13 @@ def price_final_date_only(S0, K, r, sigma, T, n_paths_train, n_paths_eval, seed,
         if disagreement_payoffs.numel() > 0:
             min_disagreement = disagreement_payoffs.min().item()
             max_disagreement = disagreement_payoffs.max().item()
-            print(
+            logger.info(
                 f"min value of payoff where the network disagrees with analytics: {min_disagreement:.6f}"
             )
-            print(
+            logger.info(
                 f"max value of payoff where the network disagrees with analytics: {max_disagreement:.6f}"
             )
         else:
-            print("No disagreements between the network and analytics.")
+            logger.info("No disagreements between the network and analytics.")
 
         return mean_payoff, standard_error

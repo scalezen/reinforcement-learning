@@ -1,3 +1,6 @@
+import math
+from loguru import logger
+
 import torch
 from gbm import simulate_gbm_vectorised
 from StoppingNet import price_final_date_only, train_stopping_net, StoppingNet
@@ -14,12 +17,12 @@ def test_stopping_net():
 
     K = 100
 
-    S_T = simulate_gbm_vectorised(S0, r, sigma, T, n_steps, n_paths, seed=None)
+    S_T = simulate_gbm_vectorised(S0, r, sigma, T, n_steps, n_paths, seed=seed)
     S_T = torch.tensor(S_T[:, -1], dtype=torch.float32).reshape((n_paths, 1))
 
-    # print(f"shape of tensor S_T: {S_T.shape}")
+    logger.info(f"shape of tensor S_T: {S_T.shape}")
 
-    payoff = torch.tensor(np.maximum(K - S_T, 0.0), dtype=torch.float32)
+    payoff = torch.clamp(K - S_T, min=0.0)
     continuation = torch.zeros(n_paths, dtype=torch.float32)
 
     train_stopping_net(
@@ -32,13 +35,11 @@ def test_price_final_date_only():
     r = 0.05
     sigma = 0.2
     T = 1.0
-    n_steps = 1
-    n_paths = 1000
     seed = 1
 
     K = 100
 
-    mean_payoff, se = StoppingNet.price_final_date_only(
+    mean_payoff, se = price_final_date_only(
         S0=S0,
         K=K,
         r=r,
@@ -59,8 +60,6 @@ def test_price_final_date_different_seeds():
     r = 0.05
     sigma = 0.2
     T = 1.0
-    n_steps = 1
-    n_paths = 1000
     K = 100
 
     seed = 0
@@ -87,8 +86,9 @@ def test_price_final_date_different_seeds():
         seed=seed,
     )
 
-    # print(f"mean_payoff with seed zero {mean_payoff}")
-    # print(f"mean_payoff with seed one {mean_payoff_one}")
+    logger.info(f"mean_payoff with seed zero {mean_payoff}")
+    logger.info(f"mean_payoff with seed one {mean_payoff_one}")
+    
     assert abs(mean_payoff - mean_payoff_one) < 3 * (
         se + se_one
     ), "Payoff computed from trained network is not within 3*se of expected value."
@@ -98,8 +98,6 @@ def test_continuation_value():
     r = 0.05
     sigma = 0.2
     T = 1.0
-    n_steps = 1
-    n_paths = 1000
     K = 100
     continuation_val = 20.0 #None # 20.0
 
@@ -116,10 +114,12 @@ def test_continuation_value():
         seed=seed,
     )
 
-    print(f"mean_payoff = {mean_payoff}")
+    logger.info(f"mean_payoff = {mean_payoff}")
 
+    assert math.isclose(mean_payoff, continuation_val), "mean_payoff doesn't match continuation value, net training is off."
 
 if __name__ == "__main__":
+    # DEBUGGING only - force run tests
     # test_stopping_net()
 
     #test_price_final_date_only()

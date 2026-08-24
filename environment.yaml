@@ -10,4 +10,5 @@ dependencies:
   - pytest
   - scipy
   - black
+  - loguru
 

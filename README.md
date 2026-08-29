@@ -92,7 +92,7 @@ include/ReplayBuffer.h  fixed-capacity circular buffer with uniform sampling
 tests/                pytest; every assertion is against a closed form or an s.e.
 ```
 
-## Known gaps
+## TOFIXs
 
 - **The two-date Bermudan test is too loose.** It asserts `price > 5.3`, but the
   European value is 5.5735 — so a network that never exercises early still passes.

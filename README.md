@@ -94,7 +94,7 @@ tests/                pytest; every assertion is against a closed form or an s.e
 
 ## TOFIXs
 
-- **The two-date Bermudan test is too loose.** It asserts `price > 5.3`, but the
+- **The two-date Bermudan test condition is too relaxed.** It asserts `price > 5.3`, but the
   European value is 5.5735 — so a network that never exercises early still passes.
   It should assert against 5.8387 within a few standard errors, which is the only
   version that actually tests the stopping rule.

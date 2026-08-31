@@ -2,9 +2,8 @@
 
 #include <cstdint>
 
-// Vigna's SplitMix64. Stateful and NOT counter-based on its own — use it to
-// expand a single 64-bit seed into well-mixed words (e.g. Philox keys/counters),
-// not as the per-thread GBM generator itself.
+// Vigna's SplitMix64. Stateful and NOT counter-based on its own — should be used to
+// expand a single 64-bit seed into well-mixed words (e.g. Philox keys/counters).
 class SplitMix64 {
 public:
     explicit SplitMix64(uint64_t seed) : state_(seed) {}

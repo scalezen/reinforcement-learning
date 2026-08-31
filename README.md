@@ -2,18 +2,17 @@
 
 [![CI](https://github.com/scalezen/reinforcement-learning/actions/workflows/ci.yml/badge.svg)](https://github.com/scalezen/reinforcement-learning/actions/workflows/ci.yml)
 
-**Optimal stopping decision.** Optimal stopping approached from two directions: a deep
-stopping network in Python that prices Bermudan options, and Q-learning in C++ on
-LibTorch. Same underlying question — *is the value of acting now greater than the
-value of waiting?* — once as a pricing problem with a closed-form answer to check
-against, once as a control problem with none.
+**Optimal stopping decision.** Two approaches to optimal stopping : (1) a deep
+stopping network in Python that prices Bermudan options, and (2) Q-learning in C++ on
+LibTorch. Determin *if the value of acting now greater than the
+value of waiting?*. 
 
 ---
 
 ## Track 1 — Deep optimal stopping (Python)
 
 `python/StoppingNet.py` implements the network of
-[Becker, Cheridito & Jentzen (2019)](https://arxiv.org/abs/1804.05394). One small
+[Becker, Cheridito & Jentzen (2019)](https://arxiv.org/abs/1804.05394). A small
 MLP per exercise date maps the state to a *soft* stopping probability
 `g(S) ∈ [0,1]`, trained to maximise
 
@@ -23,12 +22,12 @@ E[ f·g(S) + c·(1 − g(S)) ]        f = immediate payoff, c = continuation val
 
 `g` is smooth, so the expectation is
 differentiable and Adam optimizer is works. At evaluation time `g` is converted to a binary stopping decision
-`stop ⟺ g(S) > 0.5`, and the price is taken on a **new** set of brownian motion paths — training
-and evaluation never share randomness, which is what keeps the estimator from
+`stop ⟺ g(S) > 0.5`, and the price is taken on a **new** set of brownian motion paths. Training
+and out-of-sample evaluation prevents the estimator from
 being biased high by its own fitted noise.
 
-`python/gbm.py` supplies the paths (loop and vectorised implementations, kept side by
-side for performance comparison) plus the Black–Scholes reference the tests measure against.
+`python/gbm.py` supplies the paths (scalar/loop and vectorised implementations are available
+for comparison) plus the Black–Scholes reference the tests measure against.
 
 ### Benchmarks
 

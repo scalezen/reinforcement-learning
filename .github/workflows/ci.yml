@@ -12,7 +12,7 @@ on:
 jobs:
   splitmix64:
     # No libtorch on this runner — CMakeLists.txt only requires it for the
-    # q_learning/dqn_test targets, so this job builds/tests splitmix64 only.
+    # q_learning/dqn_test targets, so this job builds/tests splitmix64_test only.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +29,7 @@ jobs:
         run: cmake -S . -B build
 
       - name: Build
-        run: cmake --build build --target splitmix64 splitmix64_test
+        run: cmake --build build --target splitmix64_test
 
       - name: Test
         run: ctest --test-dir build -R SplitMix64Test --output-on-failure

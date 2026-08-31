@@ -91,10 +91,9 @@ python/
 cpp/
   q_learning_tabular.cpp   tabular Q-learning baseline
   q_learning.cpp           DQN on the same grid world
-  splitmix64.cpp           SplitMix64 seed-expansion RNG (CI-only executable)
   include/DQN.h            MLP: 16 -> 64 -> 64 -> 4
   include/ReplayBuffer.h   fixed-capacity circular buffer with uniform sampling
-  include/SplitMix64.h
+  include/SplitMix64.h     SplitMix64 seed-expansion RNG (header-only)
 tests/
   python/                  pytest; every assertion is against a closed form or an s.e.
   cpp/                     gtest — dqn_test, splitmix64_test

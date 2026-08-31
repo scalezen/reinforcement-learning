@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 project(grid_world_dqn)
 
 # LibTorch is only needed for the DQN targets (q_learning, dqn_test). Look for it
-# but don't require it, so CI can configure/build/test the splitmix64 targets
+# but don't require it, so CI can configure/build/test splitmix64_test
 # without downloading the ~300MB libtorch distribution.
 set(CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libtorch")
 find_package(Torch QUIET)
@@ -50,14 +50,10 @@ if(Torch_FOUND)
     gtest_discover_tests(dqn_test)
 endif()
 
-# splitmix64 standalone executable (no LibTorch dependency)
-add_executable(splitmix64 cpp/splitmix64.cpp)
-target_include_directories(splitmix64 PRIVATE "${CPP_INCLUDE_DIR}")
-set_property(TARGET splitmix64 PROPERTY CXX_STANDARD 17)
-
-# splitmix64 gtest suite
+# splitmix64 gtest suite (SplitMix64 is header-only — see cpp/include/SplitMix64.h)
 add_executable(splitmix64_test tests/cpp/test_splitmix64.cpp)
 target_include_directories(splitmix64_test PRIVATE "${CPP_INCLUDE_DIR}")
 target_link_libraries(splitmix64_test gtest_main)
 set_property(TARGET splitmix64_test PROPERTY CXX_STANDARD 17)
 gtest_discover_tests(splitmix64_test)
+

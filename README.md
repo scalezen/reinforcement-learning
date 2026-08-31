@@ -10,7 +10,7 @@ against, once as a control problem with none.
 
 ## Track 1 — Deep optimal stopping (Python)
 
-`StoppingNet.py` implements the network of
+`python/StoppingNet.py` implements the network of
 [Becker, Cheridito & Jentzen (2019)](https://arxiv.org/abs/1804.05394). One small
 MLP per exercise date maps the state to a *soft* stopping probability
 `g(S) ∈ [0,1]`, trained to maximise
@@ -25,7 +25,7 @@ differentiable and Adam optimizer is works. At evaluation time `g` is converted 
 and evaluation never share randomness, which is what keeps the estimator from
 being biased high by its own fitted noise.
 
-`gbm.py` supplies the paths (loop and vectorised implementations, kept side by
+`python/gbm.py` supplies the paths (loop and vectorised implementations, kept side by
 side for performance comparison) plus the Black–Scholes reference the tests measure against.
 
 ### Benchmarks
@@ -44,11 +44,11 @@ S₀ = K = 100, r = 5%, σ = 20%, T = 1.
 
 A 4×4 grid world with a goal, a trap, and a per-step penalty.
 
-- `q_learning_tabular.cpp` — Starter code. A 16×4 table, ε-greedy,
+- `cpp/q_learning_tabular.cpp` — Starter code. A 16×4 table, ε-greedy,
   a Bellman update per step. Small enough that the optimal policy can be read
   off by hand and compared.
-- `q_learning.cpp` — the same problem as DQN. One-hot state encoding, an MLP
-  (`include/DQN.h`), a circular replay buffer (`include/ReplayBuffer.h`), a target
+- `cpp/q_learning.cpp` — the same problem as DQN. One-hot state encoding, an MLP
+  (`cpp/include/DQN.h`), a circular replay buffer (`cpp/include/ReplayBuffer.h`), a target
   network synced every 500 steps, and ε annealed 1.0 → 0.01.
 
 The tabular version exists to check the DQN. A DQN
@@ -83,13 +83,19 @@ ctest --test-dir build --output-on-failure
 ## Layout
 
 ```
-StoppingNet.py        deep optimal stopping: network, training loop, pricers
-gbm.py                GBM paths (loop + vectorised), MC pricer, Black-Scholes
-q_learning_tabular.cpp  tabular Q-learning baseline
-q_learning.cpp        DQN on the same grid world
-include/DQN.h         MLP: 16 -> 64 -> 64 -> 4
-include/ReplayBuffer.h  fixed-capacity circular buffer with uniform sampling
-tests/                pytest; every assertion is against a closed form or an s.e.
+python/
+  StoppingNet.py           deep optimal stopping: network, training loop, pricers
+  gbm.py                   GBM paths (loop + vectorised), MC pricer, Black-Scholes
+cpp/
+  q_learning_tabular.cpp   tabular Q-learning baseline
+  q_learning.cpp           DQN on the same grid world
+  splitmix64.cpp           SplitMix64 seed-expansion RNG (CI-only executable)
+  include/DQN.h            MLP: 16 -> 64 -> 64 -> 4
+  include/ReplayBuffer.h   fixed-capacity circular buffer with uniform sampling
+  include/SplitMix64.h
+tests/
+  python/                  pytest; every assertion is against a closed form or an s.e.
+  cpp/                     gtest — dqn_test, splitmix64_test
 ```
 
 ## TOFIXs

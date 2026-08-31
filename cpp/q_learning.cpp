@@ -4,8 +4,8 @@
 #include <random>
 #include <tuple>
 
-#include "include/DQN.h"
-#include "include/ReplayBuffer.h"
+#include "DQN.h"
+#include "ReplayBuffer.h"
 
 // --- Keep the DQN and ReplayBuffer structs from the previous code here ---
 

@@ -1,5 +1,7 @@
 # reinforcement-learning
 
+[![CI](https://github.com/scalezen/reinforcement-learning/actions/workflows/ci.yml/badge.svg)](https://github.com/scalezen/reinforcement-learning/actions/workflows/ci.yml)
+
 **Optimal stopping decision.** Optimal stopping approached from two directions: a deep
 stopping network in Python that prices Bermudan options, and Q-learning in C++ on
 LibTorch. Same underlying question — *is the value of acting now greater than the

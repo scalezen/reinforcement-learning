@@ -1,26 +1,18 @@
-name: C++ Tests
+name: CI
 
 on:
   push:
-    branches: [main]
     paths:
       - "**.cpp"
       - "**.h"
       - "**.hpp"
       - "CMakeLists.txt"
-      - ".github/workflows/cpp-tests.yml"
-  pull_request:
-    paths:
-      - "**.cpp"
-      - "**.h"
-      - "**.hpp"
-      - "CMakeLists.txt"
-      - ".github/workflows/cpp-tests.yml"
+      - ".github/workflows/ci.yml"
 
 jobs:
   splitmix64:
     # No libtorch on this runner — CMakeLists.txt only requires it for the
-    # q_learning/dqn_test targets, so this job builds/tests splitmix64 alone.
+    # q_learning/dqn_test targets, so this job builds/tests splitmix64 only.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

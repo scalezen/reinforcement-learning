@@ -4,8 +4,8 @@
 #include <algorithm>
 #include <iomanip>
 
-#include "include/DQN.h"
-#include "include/ReplayBuffer.h"
+#include "DQN.h"
+#include "ReplayBuffer.h"
 
 using namespace std;
 

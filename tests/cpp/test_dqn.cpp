@@ -3,8 +3,8 @@
 #include <vector>
 #include <algorithm>
 
-#include "include/DQN.h"
-#include "include/ReplayBuffer.h"
+#include "DQN.h"
+#include "ReplayBuffer.h"
 
 
 int main() {

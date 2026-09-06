@@ -57,3 +57,21 @@ target_link_libraries(splitmix64_test gtest_main)
 set_property(TARGET splitmix64_test PROPERTY CXX_STANDARD 17)
 gtest_discover_tests(splitmix64_test)
 
+# fetch pybind11 automatically, same pattern as googletest above
+FetchContent_Declare(
+  pybind11
+  GIT_REPOSITORY https://github.com/pybind/pybind11.git
+  GIT_TAG        v2.13.6
+  GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(pybind11)
+
+# splitmix64 python bindings (single + batch calls), importable as splitmix64_py.
+# Built straight into python/ so `import splitmix64_py` works from gbm.py with no
+# PYTHONPATH setup.
+pybind11_add_module(splitmix64_py cpp/splitmix64_pybind.cpp)
+target_include_directories(splitmix64_py PRIVATE "${CPP_INCLUDE_DIR}")
+set_target_properties(splitmix64_py PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/python"
+)
+

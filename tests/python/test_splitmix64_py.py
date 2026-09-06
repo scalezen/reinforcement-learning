@@ -27,11 +27,20 @@ def test_next_batch_rejects_negative_n():
     with pytest.raises(ValueError):
         rng.next_batch(-1)
 
-
 def test_next_uniform_rejects_negative_n():
     rng = sm.SplitMix64(seed=0)
     with pytest.raises(ValueError):
         rng.next_uniform(-1)
+
+def test_seed_accepts_max_uint64_value():
+    max_u64 = 2**64 - 1
+    rng = sm.SplitMix64(seed=max_u64)
+    assert isinstance(rng.next(), int)
+
+
+def test_seed_rejects_negative_value():
+    with pytest.raises(TypeError):
+        sm.SplitMix64(seed=-1)
 
 def test_next_batch_dtype_and_shape():
     rng = sm.SplitMix64(seed=1)
@@ -87,5 +96,6 @@ def test_batch_calls_continue_the_same_stream_as_single_calls():
     batch_rest = rng_batch.next_batch(4)
 
     assert batch_rest.tolist() == rest
+
 
 

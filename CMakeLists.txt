@@ -15,6 +15,8 @@ endif()
 
 set(CPP_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cpp/include")
 
+find_package(Threads REQUIRED)
+
 # fetch googletest automatically
 include(FetchContent)
 FetchContent_Declare(
@@ -57,6 +59,13 @@ target_link_libraries(splitmix64_test gtest_main)
 set_property(TARGET splitmix64_test PROPERTY CXX_STANDARD 17)
 gtest_discover_tests(splitmix64_test)
 
+# splitmix64 parallel gtest suite (header-only — see cpp/include/SplitMix64Parallel.h)
+add_executable(splitmix64_parallel_test tests/cpp/test_splitmix64_parallel.cpp)
+target_include_directories(splitmix64_parallel_test PRIVATE "${CPP_INCLUDE_DIR}")
+target_link_libraries(splitmix64_parallel_test gtest_main Threads::Threads)
+set_property(TARGET splitmix64_parallel_test PROPERTY CXX_STANDARD 17)
+gtest_discover_tests(splitmix64_parallel_test)
+
 # fetch pybind11 automatically, same pattern as googletest above
 FetchContent_Declare(
   pybind11
@@ -71,6 +80,7 @@ FetchContent_MakeAvailable(pybind11)
 # PYTHONPATH setup.
 pybind11_add_module(splitmix64_py cpp/splitmix64_pybind.cpp)
 target_include_directories(splitmix64_py PRIVATE "${CPP_INCLUDE_DIR}")
+target_link_libraries(splitmix64_py PRIVATE Threads::Threads)
 set_target_properties(splitmix64_py PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/python"
 )

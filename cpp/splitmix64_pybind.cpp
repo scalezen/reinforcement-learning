@@ -80,7 +80,7 @@ PYBIND11_MODULE(splitmix64_py, m) {
     py::class_<SplitMix64Parallel>(m, "SplitMix64Parallel")
         .def(py::init<uint64_t, unsigned>(), py::arg("seed"), py::arg("n_threads"),
              "Reproduces the sequence of SplitMix64(seed), split across n_threads "
-             "worker threads computed in parallel for speed."
+             "worker threads computed in parallel for speed.")
         .def("next_batch", &next_batch_parallel, py::arg("n"),
              "n raw uint64 draws, matching SplitMix64(seed).next_batch(n), computed across "
              "n_threads worker threads.")

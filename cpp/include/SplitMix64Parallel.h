@@ -35,27 +35,9 @@ public:
     uint64_t seed() const { return seed_; }
     unsigned n_threads() const { return n_threads_; }
 
-    std::vector<uint64_t> next_batch(size_t n) {
-        std::vector<uint64_t> out(n);
-        run_parallel(n, [&](size_t begin, size_t end) {
-            for (size_t i = begin; i < end; ++i) {
-                out[i] = SplitMix64::mix(state_at(total_emitted_ + i));
-            }
-        });
-        total_emitted_ += n;
-        return out;
-    }
+    std::vector<uint64_t> next_batch(size_t n);
 
-    std::vector<double> next_uniform(size_t n) {
-        std::vector<double> out(n);
-        run_parallel(n, [&](size_t begin, size_t end) {
-            for (size_t i = begin; i < end; ++i) {
-                out[i] = SplitMix64::to_double(SplitMix64::mix(state_at(total_emitted_ + i)));
-            }
-        });
-        total_emitted_ += n;
-        return out;
-    }
+    std::vector<double> next_uniform(size_t n);
 
 private:
     // The state a plain SplitMix64(seed) would have after (global_index + 1) calls
@@ -68,30 +50,10 @@ private:
     // for each non-empty chunk on its own thread. Each thread only reads seed_/
     // total_emitted_ and writes its own disjoint slice of the output with no
     // need for shared mutable state and no locking.
-    template <typename Work>
-    void run_parallel(size_t n, Work work) {
-        if (n == 0) {
-            return;
-        }
-        size_t base = n / n_threads_;
-        size_t remainder = n % n_threads_;
-
-        std::vector<std::thread> threads;
-        threads.reserve(n_threads_);
-
-        size_t begin = 0;
-        for (unsigned t = 0; t < n_threads_; ++t) {
-            size_t chunk = base + (t < remainder ? 1 : 0);
-            size_t end = begin + chunk;
-            if (chunk > 0) {
-                threads.emplace_back(work, begin, end);
-            }
-            begin = end;
-        }
-        for (auto &th : threads) {
-            th.join();
-        }
-    }
+    //template <typename Work>
+    //void run_parallel(size_t n, const std::function() work);
+    template<typename T>
+    void run_parallel(size_t n, std::vector<T>& out);
 
     uint64_t seed_;
     unsigned n_threads_;

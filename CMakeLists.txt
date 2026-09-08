@@ -59,8 +59,9 @@ target_link_libraries(splitmix64_test gtest_main)
 set_property(TARGET splitmix64_test PROPERTY CXX_STANDARD 17)
 gtest_discover_tests(splitmix64_test)
 
-# splitmix64 parallel gtest suite (header-only — see cpp/include/SplitMix64Parallel.h)
-add_executable(splitmix64_parallel_test tests/cpp/test_splitmix64_parallel.cpp)
+# splitmix64 parallel gtest suite — SplitMix64Parallel declared in
+# cpp/include/SplitMix64Parallel.h, implemented in cpp/SplitMix64Parallel.cpp
+add_executable(splitmix64_parallel_test tests/cpp/test_splitmix64_parallel.cpp cpp/SplitMix64Parallel.cpp)
 target_include_directories(splitmix64_parallel_test PRIVATE "${CPP_INCLUDE_DIR}")
 target_link_libraries(splitmix64_parallel_test gtest_main Threads::Threads)
 set_property(TARGET splitmix64_parallel_test PROPERTY CXX_STANDARD 17)
@@ -78,7 +79,7 @@ FetchContent_MakeAvailable(pybind11)
 # splitmix64 python bindings (single + batch calls), importable as splitmix64_py.
 # Built straight into python/ so `import splitmix64_py` works from gbm.py with no
 # PYTHONPATH setup.
-pybind11_add_module(splitmix64_py cpp/splitmix64_pybind.cpp)
+pybind11_add_module(splitmix64_py cpp/splitmix64_pybind.cpp cpp/SplitMix64Parallel.cpp)
 target_include_directories(splitmix64_py PRIVATE "${CPP_INCLUDE_DIR}")
 target_link_libraries(splitmix64_py PRIVATE Threads::Threads)
 set_target_properties(splitmix64_py PROPERTIES

@@ -67,6 +67,13 @@ target_link_libraries(splitmix64_parallel_test gtest_main Threads::Threads)
 set_property(TARGET splitmix64_parallel_test PROPERTY CXX_STANDARD 17)
 gtest_discover_tests(splitmix64_parallel_test)
 
+# philox32x4 gtest suite (header-only — see cpp/include/Philox32x4.h)
+add_executable(philox32x4_test tests/cpp/test_philox32x4.cpp)
+target_include_directories(philox32x4_test PRIVATE "${CPP_INCLUDE_DIR}")
+target_link_libraries(philox32x4_test gtest_main Threads::Threads)
+set_property(TARGET philox32x4_test PROPERTY CXX_STANDARD 17)
+gtest_discover_tests(philox32x4_test)
+
 # fetch pybind11 automatically, same pattern as googletest above
 FetchContent_Declare(
   pybind11

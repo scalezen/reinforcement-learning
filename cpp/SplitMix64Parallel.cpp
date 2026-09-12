@@ -3,8 +3,8 @@
 
 
 
-template <typename T>
-void SplitMix64Parallel::run_parallel(size_t n, std::vector<T>& out) {
+template <typename T, typename Transform>
+void SplitMix64Parallel::run_parallel(size_t n, std::vector<T>& out, Transform transform) {
         if (n == 0) {
             return;
         }
@@ -13,7 +13,7 @@ void SplitMix64Parallel::run_parallel(size_t n, std::vector<T>& out) {
 
         auto work = [&](size_t begin, size_t end) {
             for (size_t i = begin; i < end; ++i) {
-                out[i] = SplitMix64::mix(state_at(total_emitted_ + i));
+                out[i] = transform(state_at(total_emitted_ + i));
             }
         };
 
@@ -36,14 +36,14 @@ void SplitMix64Parallel::run_parallel(size_t n, std::vector<T>& out) {
 
 std::vector<uint64_t> SplitMix64Parallel::next_batch(size_t n) {
         std::vector<uint64_t> out(n);
-        run_parallel(n, out);
+        run_parallel(n, out, [](uint64_t state) { return SplitMix64::mix(state); });
         total_emitted_ += n;
         return out;
     }
 
 std::vector<double> SplitMix64Parallel::next_uniform(size_t n) {
         std::vector<double> out(n);
-        run_parallel(n, out);
+        run_parallel(n, out, [](uint64_t state) { return SplitMix64::to_double(SplitMix64::mix(state)); });
         total_emitted_ += n;
         return out;
     }

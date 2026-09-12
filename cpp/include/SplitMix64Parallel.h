@@ -46,14 +46,8 @@ private:
         return seed_ + (static_cast<uint64_t>(global_index) + 1) * SplitMix64::kGoldenGamma;
     }
 
-    // Splits [0, n) into n_threads_ contiguous, near-equal chunks and runs `work`
-    // for each non-empty chunk on its own thread. Each thread only reads seed_/
-    // total_emitted_ and writes its own disjoint slice of the output with no
-    // need for shared mutable state and no locking.
-    //template <typename Work>
-    //void run_parallel(size_t n, const std::function() work);
-    template<typename T>
-    void run_parallel(size_t n, std::vector<T>& out);
+    template<typename T, typename Transform>
+    void run_parallel(size_t n, std::vector<T>& out, Transform transform);
 
     uint64_t seed_;
     unsigned n_threads_;

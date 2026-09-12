@@ -17,6 +17,21 @@ set(CPP_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/cpp/include")
 
 find_package(Threads REQUIRED)
 
+# CUDA is only needed for the Philox GPU kernel (philox32x4_cuda_test,
+# philox32x4_cuda_py). Look for it but don't require it, same pattern as
+# LibTorch above, so CI/other machines without a CUDA toolkit (e.g. macOS)
+# can still configure/build everything else.
+include(CheckLanguage)
+check_language(CUDA)
+if(CMAKE_CUDA_COMPILER)
+    enable_language(CUDA)
+    find_package(CUDAToolkit QUIET)
+endif()
+
+if(NOT (CMAKE_CUDA_COMPILER AND CUDAToolkit_FOUND))
+    message(STATUS "CUDA toolkit not found — skipping philox32x4_cuda_test and philox32x4_cuda_py targets")
+endif()
+
 # fetch googletest automatically
 include(FetchContent)
 FetchContent_Declare(
@@ -74,6 +89,17 @@ target_link_libraries(philox32x4_test gtest_main Threads::Threads)
 set_property(TARGET philox32x4_test PROPERTY CXX_STANDARD 17)
 gtest_discover_tests(philox32x4_test)
 
+if(CMAKE_CUDA_COMPILER AND CUDAToolkit_FOUND)
+    # philox32x4 CUDA kernel gtest suite — cross-checks cpp/Philox32x4Cuda.cu
+    # against the CPU philox32x4_batch in cpp/include/Philox32x4.h.
+    add_executable(philox32x4_cuda_test tests/cpp/test_philox32x4_cuda.cpp cpp/Philox32x4Cuda.cu)
+    target_include_directories(philox32x4_cuda_test PRIVATE "${CPP_INCLUDE_DIR}")
+    target_link_libraries(philox32x4_cuda_test gtest_main CUDA::cudart)
+    set_property(TARGET philox32x4_cuda_test PROPERTY CXX_STANDARD 17)
+    set_property(TARGET philox32x4_cuda_test PROPERTY CUDA_STANDARD 17)
+    gtest_discover_tests(philox32x4_cuda_test)
+endif()
+
 # fetch pybind11 automatically, same pattern as googletest above
 FetchContent_Declare(
   pybind11
@@ -92,4 +118,15 @@ target_link_libraries(splitmix64_py PRIVATE Threads::Threads)
 set_target_properties(splitmix64_py PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/python"
 )
+
+if(CMAKE_CUDA_COMPILER AND CUDAToolkit_FOUND)
+    # philox32x4 CUDA python bindings, importable as philox32x4_cuda_py.
+    pybind11_add_module(philox32x4_cuda_py cpp/philox32x4_cuda_pybind.cpp cpp/Philox32x4Cuda.cu)
+    target_include_directories(philox32x4_cuda_py PRIVATE "${CPP_INCLUDE_DIR}")
+    target_link_libraries(philox32x4_cuda_py PRIVATE CUDA::cudart)
+    set_target_properties(philox32x4_cuda_py PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/python"
+        CUDA_STANDARD 17
+    )
+endif()
 

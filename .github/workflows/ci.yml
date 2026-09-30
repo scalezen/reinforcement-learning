@@ -39,12 +39,15 @@ jobs:
         run: ctest --test-dir build -R "SplitMix64Test|Philox32x4" --output-on-failure
 
   python-tests:
-    # No torch here — test_stopping_net.py is the only file that needs it, and
-    # it's marked `slow` (conftest.py) precisely so this job can exclude it via
-    # `-m "not slow"` instead of installing torch. It still runs nightly, where
-    # nightly.yml does install torch. philox32x4_cuda_py isn't built here either
-    # (no CUDA toolkit on this runner), so test_philox32x4_cuda_py.py's
-    # importorskip just skips it.
+    # No torch/loguru here — test_stopping_net.py is the only file that needs
+    # them. It's marked `slow` (conftest.py), but `-m "not slow"` only
+    # deselects after successful collection, and collection imports every
+    # test module up front — so the file must also be --ignore'd, or its
+    # module-level `import torch`/`from loguru import logger` would fail
+    # collection before the marker filter ever runs. It still runs nightly,
+    # where nightly.yml does install torch (and loguru, via requirements-dev.txt).
+    # philox32x4_cuda_py isn't built here either (no CUDA toolkit on this
+    # runner), so test_philox32x4_cuda_py.py's importorskip just skips it.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -71,4 +74,4 @@ jobs:
         run: cmake --build build --target splitmix64_py
 
       - name: Test
-        run: pytest -m "not slow" -q
+        run: pytest -m "not slow" --ignore=tests/python/test_stopping_net.py -q

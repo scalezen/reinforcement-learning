@@ -1,6 +1,7 @@
 import math
 from loguru import logger
 
+import pytest
 import torch
 from gbm import simulate_gbm_vectorised
 from StoppingNet import (
@@ -9,6 +10,8 @@ from StoppingNet import (
     StoppingNet,
     price_bermudan_two_dates,
 )
+
+pytestmark = pytest.mark.slow
 
 
 def test_stopping_net():

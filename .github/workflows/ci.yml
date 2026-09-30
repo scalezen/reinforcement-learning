@@ -6,7 +6,10 @@ on:
       - "**.cpp"
       - "**.h"
       - "**.hpp"
+      - "**.py"
       - "CMakeLists.txt"
+      - "pytest.ini"
+      - "conftest.py"
       - ".github/workflows/ci.yml"
 
 jobs:
@@ -34,3 +37,38 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build -R "SplitMix64Test|Philox32x4" --output-on-failure
+
+  python-tests:
+    # No torch here — test_stopping_net.py is the only file that needs it, and
+    # it's marked `slow` (conftest.py) precisely so this job can exclude it via
+    # `-m "not slow"` instead of installing torch. It still runs nightly, where
+    # nightly.yml does install torch. philox32x4_cuda_py isn't built here either
+    # (no CUDA toolkit on this runner), so test_philox32x4_cuda_py.py's
+    # importorskip just skips it.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install python dependencies (no torch)
+        run: pip install numpy scipy pytest
+
+      - name: Cache FetchContent dependencies (googletest, pybind11, etc.)
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-fetchcontent-
+
+      - name: Configure
+        run: cmake -S . -B build
+
+      - name: Build python bindings
+        run: cmake --build build --target splitmix64_py
+
+      - name: Test
+        run: pytest -m "not slow" -q

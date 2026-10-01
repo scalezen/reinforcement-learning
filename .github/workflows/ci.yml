@@ -42,12 +42,7 @@ jobs:
     # No torch/loguru here — test_stopping_net.py is the only file that needs
     # them. It's marked `slow` (conftest.py), but `-m "not slow"` only
     # deselects after successful collection, and collection imports every
-    # test module up front — so the file must also be --ignore'd, or its
-    # module-level `import torch`/`from loguru import logger` would fail
-    # collection before the marker filter ever runs. It still runs nightly,
-    # where nightly.yml does install torch (and loguru, via requirements-dev.txt).
-    # philox32x4_cuda_py isn't built here either (no CUDA toolkit on this
-    # runner), so test_philox32x4_cuda_py.py's importorskip just skips it.
+    # test module up front, so, the file must also be explicitly ignored.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

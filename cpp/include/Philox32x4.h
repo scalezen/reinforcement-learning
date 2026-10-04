@@ -149,7 +149,7 @@ inline std::vector<double> philox32x4_normal_batch<double>(uint32_t num_rands,
 }
 
 template<typename W>
-inline void philox23x4_mt_impl(uint32_t num_threads, uint32_t num_rands, W& work)
+inline void philox32x4_mt_impl(uint32_t num_threads, uint32_t num_rands, W& work)
 {
         if(num_threads == 0)
             throw std::invalid_argument("num_threads must be positive");
@@ -170,8 +170,6 @@ inline void philox23x4_mt_impl(uint32_t num_threads, uint32_t num_rands, W& work
             if(th.joinable())
                 th.join();
         }
-        
-        return;
 }
 
 // Multithreaded implementation - given argument num_rands, this method returns a
@@ -188,7 +186,7 @@ inline std::vector<uint32_t> philox32x4_batch_mt(uint32_t num_rands, uint32_t nu
                 output_rands[i] = out[i - chunk_begin];
         };
 
-        philox23x4_mt_impl(num_threads, num_rands, work);
+        philox32x4_mt_impl(num_threads, num_rands, work);
 
         return output_rands;
 }
@@ -211,7 +209,7 @@ inline std::vector<T> philox32x4_normal_batch_mt(uint32_t num_rands, uint32_t nu
                 output_rands[i] = out[i - chunk_begin];
         };
 
-        philox23x4_mt_impl(num_threads, num_rands, work);
+        philox32x4_mt_impl(num_threads, num_rands, work);
 
         return output_rands;
 }

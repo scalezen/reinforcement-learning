@@ -110,10 +110,9 @@ TEST(Philox32x4BatchMtTest, MatchesPerThreadPhilox32x4BatchCalls) {
             auto out = philox32x4_batch_mt(num_rands, num_threads);
             ASSERT_EQ(out.size(), num_rands);
 
-            uint32_t num_rands_per_thread = (num_rands + num_threads - 1) / num_threads;
             for (uint32_t th = 0; th < num_threads; ++th) {
-                uint32_t chunk_begin = th * num_rands_per_thread;
-                uint32_t chunk_end = std::min(num_rands, (th + 1) * num_rands_per_thread);
+                uint32_t chunk_begin = static_cast<uint32_t>(uint64_t(th) * num_rands / num_threads);
+                uint32_t chunk_end = static_cast<uint32_t>(uint64_t(th + 1) * num_rands / num_threads);
                 if (chunk_begin >= chunk_end) continue;
 
                 auto expected_chunk = philox32x4_batch(chunk_end - chunk_begin, 0, th);
@@ -135,12 +134,11 @@ TEST(Philox32x4BatchMtTest, NoCounterCollisionsAcrossThreads) {
     // thread index) scheme philox32x4_batch_mt actually uses.
     for (uint32_t num_rands : {16u, 17u, 23u, 100u, 30u, 1u, 4u}) {
         for (uint32_t num_threads : {1u, 2u, 3u, 5u, 8u}) {
-            uint32_t num_rands_per_thread = (num_rands + num_threads - 1) / num_threads;
 
             std::vector<std::pair<uint32_t, uint32_t>> counters_used;
             for (uint32_t th = 0; th < num_threads; ++th) {
-                uint32_t chunk_begin = th * num_rands_per_thread;
-                uint32_t chunk_end = std::min(num_rands, (th + 1) * num_rands_per_thread);
+                uint32_t chunk_begin = static_cast<uint32_t>(uint64_t(th) * num_rands / num_threads);
+                uint32_t chunk_end = static_cast<uint32_t>(uint64_t(th + 1) * num_rands / num_threads);
                 if (chunk_begin >= chunk_end) continue;
 
                 uint32_t chunk_size = chunk_end - chunk_begin;

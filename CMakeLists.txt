@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 project(grid_world_dqn)
 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 # LibTorch is only needed for the DQN targets (q_learning, dqn_test). Look for it
 # but don't require it, so CI can configure/build/test splitmix64_test
 # without downloading the ~300MB libtorch distribution.
@@ -53,7 +56,7 @@ if(Torch_FOUND)
 
     # Link libtorch
     target_link_libraries(q_learning "${TORCH_LIBRARIES}")
-    set_property(TARGET q_learning PROPERTY CXX_STANDARD 17)
+    set_property(TARGET q_learning PROPERTY CXX_STANDARD 20)
 
     # Define the test executable
     add_executable(dqn_test tests/cpp/test_dqn.cpp)
@@ -61,7 +64,7 @@ if(Torch_FOUND)
 
     # Link GTest (gtest_main) and LibTorch to the test executable
     target_link_libraries(dqn_test gtest_main "${TORCH_LIBRARIES}")
-    set_property(TARGET dqn_test PROPERTY CXX_STANDARD 17)
+    set_property(TARGET dqn_test PROPERTY CXX_STANDARD 20)
 
     # register the test executable with ctest
     gtest_discover_tests(dqn_test)
@@ -71,7 +74,7 @@ endif()
 add_executable(splitmix64_test tests/cpp/test_splitmix64.cpp)
 target_include_directories(splitmix64_test PRIVATE "${CPP_INCLUDE_DIR}")
 target_link_libraries(splitmix64_test gtest_main)
-set_property(TARGET splitmix64_test PROPERTY CXX_STANDARD 17)
+set_property(TARGET splitmix64_test PROPERTY CXX_STANDARD 20)
 gtest_discover_tests(splitmix64_test)
 
 # splitmix64 parallel gtest suite — SplitMix64Parallel declared in
@@ -79,14 +82,14 @@ gtest_discover_tests(splitmix64_test)
 add_executable(splitmix64_parallel_test tests/cpp/test_splitmix64_parallel.cpp cpp/SplitMix64Parallel.cpp)
 target_include_directories(splitmix64_parallel_test PRIVATE "${CPP_INCLUDE_DIR}")
 target_link_libraries(splitmix64_parallel_test gtest_main Threads::Threads)
-set_property(TARGET splitmix64_parallel_test PROPERTY CXX_STANDARD 17)
+set_property(TARGET splitmix64_parallel_test PROPERTY CXX_STANDARD 20)
 gtest_discover_tests(splitmix64_parallel_test)
 
 # philox32x4 gtest suite (header-only — see cpp/include/Philox32x4.h)
 add_executable(philox32x4_test tests/cpp/test_philox32x4.cpp)
 target_include_directories(philox32x4_test PRIVATE "${CPP_INCLUDE_DIR}")
 target_link_libraries(philox32x4_test gtest_main Threads::Threads)
-set_property(TARGET philox32x4_test PROPERTY CXX_STANDARD 17)
+set_property(TARGET philox32x4_test PROPERTY CXX_STANDARD 20)
 gtest_discover_tests(philox32x4_test)
 
 if(CMAKE_CUDA_COMPILER AND CUDAToolkit_FOUND)
@@ -95,8 +98,8 @@ if(CMAKE_CUDA_COMPILER AND CUDAToolkit_FOUND)
     add_executable(philox32x4_cuda_test tests/cpp/test_philox32x4_cuda.cpp cpp/Philox32x4Cuda.cu)
     target_include_directories(philox32x4_cuda_test PRIVATE "${CPP_INCLUDE_DIR}")
     target_link_libraries(philox32x4_cuda_test gtest_main CUDA::cudart)
-    set_property(TARGET philox32x4_cuda_test PROPERTY CXX_STANDARD 17)
-    set_property(TARGET philox32x4_cuda_test PROPERTY CUDA_STANDARD 17)
+    set_property(TARGET philox32x4_cuda_test PROPERTY CXX_STANDARD 20)
+    set_property(TARGET philox32x4_cuda_test PROPERTY CUDA_STANDARD 20)
     gtest_discover_tests(philox32x4_cuda_test)
 endif()
 
@@ -126,7 +129,14 @@ if(CMAKE_CUDA_COMPILER AND CUDAToolkit_FOUND)
     target_link_libraries(philox32x4_cuda_py PRIVATE CUDA::cudart)
     set_target_properties(philox32x4_cuda_py PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/python"
-        CUDA_STANDARD 17
+        CUDA_STANDARD 20
     )
 endif()
 
+
+pybind11_add_module(philox32x4_py cpp/philox32x4_pybind.cpp)
+target_include_directories(philox32x4_py PRIVATE "${CPP_INCLUDE_DIR}")
+target_link_libraries(philox32x4_py PRIVATE Threads::Threads)
+set_target_properties(philox32x4_py PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/python"
+)

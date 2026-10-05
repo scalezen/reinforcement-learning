@@ -66,7 +66,7 @@ jobs:
         run: cmake -S . -B build
 
       - name: Build python bindings
-        run: cmake --build build --target splitmix64_py
+        run: cmake --build build --target splitmix64_py philox32x4_py
 
       - name: Test
         run: pytest -m "not slow" --ignore=tests/python/test_stopping_net.py -q

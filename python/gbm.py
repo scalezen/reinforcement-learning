@@ -32,11 +32,12 @@ def simulate_gbm(S0, r, sigma, T, n_steps, n_paths, seed=None):
     return output
 
 
-def simulate_gbm_vectorised(S0, r, sigma, T, n_steps, n_paths, seed=None):
+def simulate_gbm_vectorised(S0, r, sigma, T, n_steps, n_paths, seed=None, normals=None):
     """
     Simulate geometric Brownian motion under the risk-neutral measure.
 
-    Fully numpy vectorised.
+    Fully numpy vectorised. If `normals` (shape (n_paths, n_steps), standard
+    normal) is given, it supplies the Brownian increments instead of NumPy's RNG.
 
     Returns array of shape (n_paths, n_steps + 1), where column 0 is S0
     for every path and column k is the price at time k * (T / n_steps).
@@ -49,7 +50,9 @@ def simulate_gbm_vectorised(S0, r, sigma, T, n_steps, n_paths, seed=None):
 
     step_size = T / n_steps
 
-    w = np.random.standard_normal((n_paths, n_steps))
+    if normals is None:
+        normals = np.random.standard_normal((n_paths, n_steps))
+    w = normals
 
     output[:, 0] = S0
     output[:, 1:] = S0 * np.exp(

@@ -44,7 +44,9 @@ inline std::array<uint32_t, 4> philox32x4(
 // vector of num_rands Philox32 random numbers.
 inline std::vector<uint32_t> philox32x4_batch(uint32_t num_rands,
                                         uint32_t counter0_offset = 0,
-                                        uint32_t counter1_offset = 0)
+                                        uint32_t counter1_offset = 0,
+                                        uint32_t key0 = 0,
+                                        uint32_t key1 = 0)
 {
         std::vector<uint32_t> output_rands(num_rands); //TODO - avoid allocating a vector here
 
@@ -52,7 +54,7 @@ inline std::vector<uint32_t> philox32x4_batch(uint32_t num_rands,
 
         for (uint32_t loop = 0; loop < num_loops; ++loop)
         {
-            auto out = philox32x4({counter0_offset + loop, counter1_offset + 0, 0, 0}, {0, 0});
+            auto out = philox32x4({counter0_offset + loop, counter1_offset + 0, 0, 0}, {key0, key1});
 
             output_rands[loop*4] = out[0];
             output_rands[loop*4+1] = out[1];
@@ -63,7 +65,7 @@ inline std::vector<uint32_t> philox32x4_batch(uint32_t num_rands,
         if(num_rands % 4 != 0)
         {
             uint32_t remaining = num_rands % 4;
-            auto out = philox32x4({counter0_offset + num_loops, counter1_offset + 0, 0, 0}, {0, 0});
+            auto out = philox32x4({counter0_offset + num_loops, counter1_offset + 0, 0, 0}, {key0, key1});
             for(uint32_t i = 0; i < remaining; ++i)
             {
                 output_rands[4*num_loops + i] = out[i];
@@ -77,14 +79,18 @@ inline std::vector<uint32_t> philox32x4_batch(uint32_t num_rands,
 // vector of num_rands sampled from normal distribution
 template<typename T> std::vector<T> philox32x4_normal_batch(uint32_t num_rands,
                                                             uint32_t counter0_offset = 0,
-                                                            uint32_t counter1_offset = 0);
+                                                            uint32_t counter1_offset = 0,
+                                                            uint32_t key0 = 0,
+                                                            uint32_t key1 = 0);
 
 // Given argument num_rands, this method returns a
 // vector of num_rands floats sampled from normal distribution
 template<>
 inline std::vector<float> philox32x4_normal_batch<float>(uint32_t num_rands,
                                                             uint32_t counter0_offset,
-                                                            uint32_t counter1_offset)
+                                                            uint32_t counter1_offset,
+                                                            uint32_t key0,
+                                                            uint32_t key1)
 {
         std::vector<float> output_rands(num_rands);
 
@@ -97,7 +103,7 @@ inline std::vector<float> philox32x4_normal_batch<float>(uint32_t num_rands,
 
         for (uint32_t loop = 0; loop < num_loops; ++loop)
         {
-            auto out = philox32x4({counter0_offset + loop, counter1_offset + 0, 0, 0}, {0, 0});
+            auto out = philox32x4({counter0_offset + loop, counter1_offset + 0, 0, 0}, {key0, key1});
 
             for(uint32_t i = 0; i < 4; ++i)
                 output_rands[4*loop + i] = to_normal(out[i]);
@@ -106,7 +112,7 @@ inline std::vector<float> philox32x4_normal_batch<float>(uint32_t num_rands,
         if(num_rands % 4 != 0)
         {
             uint32_t remaining = num_rands % 4;
-            auto out = philox32x4({counter0_offset + num_loops, counter1_offset + 0, 0, 0}, {0, 0});
+            auto out = philox32x4({counter0_offset + num_loops, counter1_offset + 0, 0, 0}, {key0, key1});
             for(uint32_t i = 0; i < remaining; ++i)
                 output_rands[4*num_loops + i] = to_normal(out[i]);
         }
@@ -119,7 +125,9 @@ inline std::vector<float> philox32x4_normal_batch<float>(uint32_t num_rands,
 template<>
 inline std::vector<double> philox32x4_normal_batch<double>(uint32_t num_rands,
                                                             uint32_t counter0_offset,
-                                                            uint32_t counter1_offset)
+                                                            uint32_t counter1_offset,
+                                                            uint32_t key0,
+                                                            uint32_t key1)
 {
         std::vector<double> output_rands(num_rands);
 
@@ -133,7 +141,7 @@ inline std::vector<double> philox32x4_normal_batch<double>(uint32_t num_rands,
 
         for (uint32_t loop = 0; loop < num_loops; ++loop)
         {
-            auto out = philox32x4({counter0_offset + loop, counter1_offset + 0, 0, 0}, {0, 0});
+            auto out = philox32x4({counter0_offset + loop, counter1_offset + 0, 0, 0}, {key0, key1});
             for(int i = 0; i < 2; i++)
                 output_rands[loop*2 + i] = to_normal(out[2*i], out[2*i + 1]);
         }
@@ -141,7 +149,7 @@ inline std::vector<double> philox32x4_normal_batch<double>(uint32_t num_rands,
         // calculate the last double if num_rands%2 != 0
         if(num_rands % 2 != 0)
         {
-            auto out = philox32x4({counter0_offset + num_loops, counter1_offset + 0, 0, 0}, {0, 0});
+            auto out = philox32x4({counter0_offset + num_loops, counter1_offset + 0, 0, 0}, {key0, key1});
             output_rands[num_rands - 1] = to_normal(out[0], out[1]);
         }
 
@@ -174,14 +182,15 @@ inline void philox32x4_mt_impl(uint32_t num_threads, uint32_t num_rands, W& work
 
 // Multithreaded implementation - given argument num_rands, this method returns a
 // vector of num_rands Philox32 random numbers generated by num_threads threads
-inline std::vector<uint32_t> philox32x4_batch_mt(uint32_t num_rands, uint32_t num_threads)
+inline std::vector<uint32_t> philox32x4_batch_mt(uint32_t num_rands, uint32_t num_threads,
+                                                 uint32_t key0 = 0, uint32_t key1 = 0)
 {
         std::vector<uint32_t> output_rands(num_rands);
 
-        auto work = [&output_rands](uint32_t c0_offset, uint32_t c1_offset, uint32_t chunk_begin, uint32_t chunk_end)
+        auto work = [&output_rands, key0, key1](uint32_t c0_offset, uint32_t c1_offset, uint32_t chunk_begin, uint32_t chunk_end)
         {
             auto chunk_len = chunk_end - chunk_begin;
-            auto out = philox32x4_batch(chunk_len, c0_offset, c1_offset);
+            auto out = philox32x4_batch(chunk_len, c0_offset, c1_offset, key0, key1);
             for(uint32_t i = chunk_begin; i < chunk_end; ++i)
                 output_rands[i] = out[i - chunk_begin];
         };
@@ -197,14 +206,15 @@ inline std::vector<uint32_t> philox32x4_batch_mt(uint32_t num_rands, uint32_t nu
 // vector of num_rands float/double normal random numbers generated with Philox32x4. The
 // work is done by num_threads threads.
 template<typename T>
-inline std::vector<T> philox32x4_normal_batch_mt(uint32_t num_rands, uint32_t num_threads)
+inline std::vector<T> philox32x4_normal_batch_mt(uint32_t num_rands, uint32_t num_threads,
+                                                 uint32_t key0 = 0, uint32_t key1 = 0)
 {
         std::vector<T> output_rands(num_rands);
 
-        auto work = [&output_rands](uint32_t c0_offset, uint32_t c1_offset, uint32_t chunk_begin, uint32_t chunk_end)
+        auto work = [&output_rands, key0, key1](uint32_t c0_offset, uint32_t c1_offset, uint32_t chunk_begin, uint32_t chunk_end)
         {
             auto chunk_len = chunk_end - chunk_begin;
-            auto out = philox32x4_normal_batch<T>(chunk_len, c0_offset, c1_offset);
+            auto out = philox32x4_normal_batch<T>(chunk_len, c0_offset, c1_offset, key0, key1);
             for(uint32_t i = chunk_begin; i < chunk_end; ++i)
                 output_rands[i] = out[i - chunk_begin];
         };

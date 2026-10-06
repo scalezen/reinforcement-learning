@@ -49,7 +49,7 @@ def test_default_keys_are_zero():
     )
 
 
-def test_default_keys_are_non_zero():
+def test_non_zero_keys_change_output():
     assert (
         philox_cuda.next_batch(4).tolist()
         != philox_cuda.next_batch(4, 0, 0, 1, 1).tolist()

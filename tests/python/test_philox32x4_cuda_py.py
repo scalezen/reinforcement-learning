@@ -37,7 +37,23 @@ def test_next_batch_size_matches_request_including_non_multiples_of_4():
 
 
 def test_default_offsets_are_zero():
-    assert philox_cuda.next_batch(4).tolist() == philox_cuda.next_batch(4, 0, 0).tolist()
+    assert (
+        philox_cuda.next_batch(4).tolist() == philox_cuda.next_batch(4, 0, 0).tolist()
+    )
+
+
+def test_default_keys_are_zero():
+    assert (
+        philox_cuda.next_batch(4).tolist()
+        == philox_cuda.next_batch(4, 0, 0, 0, 0).tolist()
+    )
+
+
+def test_default_keys_are_non_zero():
+    assert (
+        philox_cuda.next_batch(4).tolist()
+        != philox_cuda.next_batch(4, 0, 0, 1, 1).tolist()
+    )
 
 
 def test_deterministic_for_same_inputs():

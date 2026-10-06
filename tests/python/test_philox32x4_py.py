@@ -106,7 +106,9 @@ def test_uint32_mt_deterministic_across_calls():
 
 
 def test_uint32_blocks_have_no_repeats():
-    batch = px.uint32_batch(200_000, counter0_offset=3, counter1_offset=4, key0=5, key1=6)
+    batch = px.uint32_batch(
+        200_000, counter0_offset=3, counter1_offset=4, key0=5, key1=6
+    )
     blocks = batch.reshape(-1, 4)
     assert len(np.unique(blocks, axis=0)) == len(blocks)
 
@@ -124,7 +126,9 @@ def check_standard_normal_moments(x):
 
 
 def test_float_normal_moments():
-    check_standard_normal_moments(px.float_normal_batch(1_000_000, key0=1, key1=2).astype(np.float64))
+    check_standard_normal_moments(
+        px.float_normal_batch(1_000_000, key0=1, key1=2).astype(np.float64)
+    )
 
 
 def test_double_normal_moments():
@@ -132,7 +136,9 @@ def test_double_normal_moments():
 
 
 def test_double_normal_mt_moments():
-    check_standard_normal_moments(px.double_normal_batch_mt(1_000_000, 4, key0=1, key1=2))
+    check_standard_normal_moments(
+        px.double_normal_batch_mt(1_000_000, 4, key0=1, key1=2)
+    )
 
 
 @pytest.mark.parametrize("n_threads", [1, 3, 8])
@@ -153,7 +159,9 @@ def test_gbm_brownian_increments_from_philox_have_correct_mean_and_vol():
     S0, r, sigma, T = 100.0, 0.05, 0.2, 1.0
     n_steps, n_paths = 50, 50_000
 
-    z = px.double_normal_batch_mt(n_paths * n_steps, 4, key0=1, key1=2).reshape(n_paths, n_steps)
+    z = px.double_normal_batch_mt(n_paths * n_steps, 4, key0=1, key1=2).reshape(
+        n_paths, n_steps
+    )
     paths = simulate_gbm_vectorised(S0, r, sigma, T, n_steps, n_paths, normals=z)
 
     ST = paths[:, -1]
@@ -162,7 +170,9 @@ def test_gbm_brownian_increments_from_philox_have_correct_mean_and_vol():
     assert abs(ST.mean() - theoretical_mean) < 4.0 * se_mean
 
     log_return = np.log(ST / S0)
-    assert abs(log_return.std(ddof=1) - sigma * math.sqrt(T)) < 0.02 * sigma * math.sqrt(T)
+    assert abs(
+        log_return.std(ddof=1) - sigma * math.sqrt(T)
+    ) < 0.02 * sigma * math.sqrt(T)
 
 
 def test_gbm_brownian_is_deterministic_for_keys():
@@ -170,7 +180,9 @@ def test_gbm_brownian_is_deterministic_for_keys():
     n_steps, n_paths = 20, 1000
 
     def run(key0, key1):
-        z = px.double_normal_batch_mt(n_paths * n_steps, 4, key0=key0, key1=key1).reshape(n_paths, n_steps)
+        z = px.double_normal_batch_mt(
+            n_paths * n_steps, 4, key0=key0, key1=key1
+        ).reshape(n_paths, n_steps)
         return simulate_gbm_vectorised(S0, r, sigma, T, n_steps, n_paths, normals=z)
 
     assert np.array_equal(run(1, 2), run(1, 2))

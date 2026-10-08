@@ -8,11 +8,17 @@
 #include <cmath>
 #include <limits>
 
+#if defined(__CUDACC__)
+#define PHILOX_HOST_DEVICE __host__ __device__
+#else
+#define PHILOX_HOST_DEVICE
+#endif
+
 template <typename T>
 T erfinv_giles(T x);
 
 template <>
-inline float erfinv_giles<float>(float x) {
+PHILOX_HOST_DEVICE inline float erfinv_giles<float>(float x) {
     float w = -std::log((1.0f - x) * (1.0f + x));
     float p;
     if (w < 5.0f) {

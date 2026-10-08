@@ -22,15 +22,30 @@ py::array_t<uint32_t> next_batch(uint32_t num_rands, uint32_t counter0_offset, u
     return out;
 }
 
+py::array_t<float> next_normal_batch(uint32_t num_rands, uint32_t counter0_offset, uint32_t counter1_offset,
+                                     uint32_t key0, uint32_t key1) {
+    std::vector<float> result = philox32x4_normal_batch_cuda(num_rands, counter0_offset, counter1_offset, key0, key1);
+    py::array_t<float> out(result.size());
+    auto buf = out.mutable_unchecked<1>();
+    for (std::size_t i = 0; i < result.size(); ++i) {
+        buf(i) = result[i];
+    }
+    return out;
+}
+
 }  // namespace
 
 PYBIND11_MODULE(philox32x4_cuda_py, m) {
     m.doc() =
         "Philox4x32 batch generation on the GPU — backed by cpp/Philox32x4Cuda.cu, "
-        "bit-for-bit identical to the CPU philox32x4_batch in cpp/include/Philox32x4.h "
-        "for the same (num_rands, counter0_offset, counter1_offset, key0, key1).";
+        "bit-for-bit identical to the CPU philox32x4_batch/philox32x4_normal_batch<float> "
+        "in cpp/include/Philox32x4.h for the same (num_rands, counter0_offset, counter1_offset, key0, key1).";
 
     m.def("next_batch", &next_batch, py::arg("num_rands"), py::arg("counter0_offset") = 0,
           py::arg("counter1_offset") = 0, py::arg("key0") = 0, py::arg("key1") = 0,
           "num_rands Philox4x32 uint32 draws, generated on the GPU.");
+
+    m.def("next_normal_batch", &next_normal_batch, py::arg("num_rands"), py::arg("counter0_offset") = 0,
+          py::arg("counter1_offset") = 0, py::arg("key0") = 0, py::arg("key1") = 0,
+          "num_rands float32 standard normal draws, generated on the GPU.");
 }

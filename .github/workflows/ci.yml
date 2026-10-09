@@ -85,6 +85,7 @@ jobs:
         id: cuda-toolkit
         with:
           cuda: "12.6.2"
+          sub-packages: '["nvcc", "cudart"]'
           method: network
 
       - uses: actions/setup-python@v5

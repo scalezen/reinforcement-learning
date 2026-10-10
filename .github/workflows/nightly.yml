@@ -43,3 +43,37 @@ jobs:
 
       - name: Run the suite
         run: pytest -m "not slow" --ignore=tests/python/test_stopping_net.py -q --durations=0
+
+  cuda-build:
+    # Compile-only, same as ci.yml's cuda-build job: this runner has no GPU,
+    # so philox32x4_cuda_test and philox32x4_cuda_py are built (nvcc doesn't
+    # need a device) but not run — launching a kernel here fails at runtime,
+    # not compile time. Catches CUDA build breaks; doesn't cover correctness.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: Jimver/cuda-toolkit@v0.2.19
+        id: cuda-toolkit
+        with:
+          cuda: "12.6.2"
+          sub-packages: '["nvcc", "cudart"]'
+          method: network
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache FetchContent dependencies (googletest, pybind11, etc.)
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: ${{ runner.os }}-fetchcontent-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-fetchcontent-
+
+      - name: Configure
+        run: cmake -S . -B build
+
+      - name: Build CUDA targets
+        run: cmake --build build --target philox32x4_cuda_test philox32x4_cuda_py

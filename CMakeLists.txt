@@ -92,6 +92,20 @@ target_link_libraries(philox32x4_test gtest_main Threads::Threads)
 set_property(TARGET philox32x4_test PROPERTY CXX_STANDARD 20)
 gtest_discover_tests(philox32x4_test)
 
+# Monte Carlo library: PathArray/PathModel are header-only (pulled in
+# transitively); GbmPathModel and HestonPathModel target compiles the
+# header + cpp files.
+add_library(mc STATIC cpp/mc/GbmPathModel.cpp cpp/mc/HestonPathModel.cpp)
+target_include_directories(mc PUBLIC "${CPP_INCLUDE_DIR}")
+target_link_libraries(mc PUBLIC Threads::Threads)
+set_property(TARGET mc PROPERTY CXX_STANDARD 20)
+
+# mc gtest suite
+add_executable(mc_test tests/cpp/test_gbm_path_model.cpp)
+target_link_libraries(mc_test gtest_main mc)
+set_property(TARGET mc_test PROPERTY CXX_STANDARD 20)
+gtest_discover_tests(mc_test)
+
 if(CMAKE_CUDA_COMPILER AND CUDAToolkit_FOUND)
     # philox32x4 CUDA kernel gtest suite — cross-checks cpp/Philox32x4Cuda.cu
     # against the CPU philox32x4_batch in cpp/include/Philox32x4.h.

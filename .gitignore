@@ -1,0 +1,31 @@
+# --- C++ build ---------------------------------------------------------------
+build/
+*.o
+*.dSYM/
+a.out
+
+# --- vendored LibTorch -------------------------------------------------------
+# 2 GB of macOS-arm64 binaries. Download it, don't commit it; CMake picks up
+# ./libtorch automatically if it's there, otherwise pass -DCMAKE_PREFIX_PATH.
+libtorch/
+libtorch-*.zip
+
+# --- python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+*.egg-info/
+.venv/
+venv/
+
+# --- editors / OS ------------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+
+# --- Claude Code local settings ----------------------------------------------
+.claude/settings.local.json
+
+# compiled pybind11 extensions
+*.so

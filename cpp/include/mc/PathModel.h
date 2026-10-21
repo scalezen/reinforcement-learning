@@ -16,4 +16,5 @@ class PathModel {
 
     // Returns a PathArray sized (num_steps()+1, num_paths(), num_factors()).
     virtual PathArray simulate() const = 0;
+    virtual PathArray simulate_gpu() const = 0;
 };

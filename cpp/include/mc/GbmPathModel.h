@@ -18,6 +18,7 @@ class GbmPathModel : public PathModel {
     double dt() const override { return T_ / static_cast<double>(n_steps_); }
 
     PathArray simulate() const override;
+    PathArray simulate_gpu() const override;
 
    private:
     double S0_, r_, sigma_, T_;

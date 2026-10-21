@@ -3,40 +3,9 @@
 #include <stdexcept>
 #include <string>
 
-#include "GilesErfinv.h"
 #include "Philox32x4Cuda.cuh"
 
 namespace {
-
-constexpr uint32_t kNumRounds = 10;
-constexpr float kSqrt2 = 1.4142135623730950488f;
-
-// Device kernel corresponding to philox32x4() in Philox32x4.h
-__device__ __forceinline__ void philox32x4_device(uint32_t counter[4], uint32_t key[2]) {
-    constexpr uint32_t M0 = 0xD2511F53u;
-    constexpr uint32_t M1 = 0xCD9E8D57u;
-    constexpr uint32_t W0 = 0x9E3779B9u;
-    constexpr uint32_t W1 = 0xBB67AE85u;
-
-#pragma unroll
-    for (uint32_t i = 0; i < kNumRounds; ++i) {
-        uint64_t prod0 = static_cast<uint64_t>(counter[0]) * M0;
-        uint64_t prod1 = static_cast<uint64_t>(counter[2]) * M1;
-
-        uint32_t new_c0 = static_cast<uint32_t>(prod1 >> 32) ^ counter[1] ^ key[0];
-        uint32_t new_c1 = static_cast<uint32_t>(prod1);
-        uint32_t new_c2 = static_cast<uint32_t>(prod0 >> 32) ^ counter[3] ^ key[1];
-        uint32_t new_c3 = static_cast<uint32_t>(prod0);
-
-        counter[0] = new_c0;
-        counter[1] = new_c1;
-        counter[2] = new_c2;
-        counter[3] = new_c3;
-
-        key[0] += W0;
-        key[1] += W1;
-    }
-}
 
 // One thread computes one 4-word Philox block, matching one iteration of the
 // `loop` variable in the CPU philox32x4_batch. Thread global index `idx` maps
@@ -68,12 +37,6 @@ __global__ void philox32x4_kernel(uint32_t num_rands, uint32_t counter0_offset, 
     }
 }
 
-// uint32 -> standard normal, same math as philox32x4_normal_batch<float>'s to_normal.
-__device__ __forceinline__ float to_normal(uint32_t arg) {
-    int32_t t = static_cast<int32_t>(2 * (arg >> 8) + 1) - (1 << 24);
-    return kSqrt2 * erfinv_giles<float>(static_cast<float>(t) * 0x1.0p-24f);
-}
-
 // Same block/thread mapping as philox32x4_kernel, but outputs float normals.
 __global__ void philox32x4_normal_kernel(uint32_t num_rands, uint32_t counter0_offset, uint32_t counter1_offset,
                                          uint32_t key0, uint32_t key1, float* out) {
@@ -93,12 +56,6 @@ __global__ void philox32x4_normal_kernel(uint32_t num_rands, uint32_t counter0_o
         if (base + i < num_rands) {
             out[base + i] = to_normal(counter[i]);
         }
-    }
-}
-
-void cuda_check(cudaError_t err, const char* what) {
-    if (err != cudaSuccess) {
-        throw std::runtime_error(std::string(what) + ": " + cudaGetErrorString(err));
     }
 }
 

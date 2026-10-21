@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstddef>
+#include <stdexcept>
+#include <utility>
 #include <vector>
 
 // Flat (time, path, factor) buffer.
@@ -13,6 +15,13 @@ class PathArray {
           num_paths_(num_paths),
           num_factors_(num_factors),
           data_(num_times * num_paths * num_factors) {}
+
+    PathArray(size_t num_times, size_t num_paths, size_t num_factors, std::vector<double> data)
+        : num_times_(num_times), num_paths_(num_paths), num_factors_(num_factors), data_(std::move(data)) {
+        if (data_.size() != num_times_ * num_paths_ * num_factors_) {
+            throw std::invalid_argument("PathArray: data size does not match num_times*num_paths*num_factors");
+        }
+    }
 
     size_t num_times() const { return num_times_; }
     size_t num_paths() const { return num_paths_; }

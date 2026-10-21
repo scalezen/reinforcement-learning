@@ -100,6 +100,15 @@ target_include_directories(mc PUBLIC "${CPP_INCLUDE_DIR}")
 target_link_libraries(mc PUBLIC Threads::Threads)
 set_property(TARGET mc PROPERTY CXX_STANDARD 20)
 
+if(CMAKE_CUDA_COMPILER AND CUDAToolkit_FOUND)
+    # GbmPathModel::simulate_gpu()'s real implementation; the .cpp above only
+    # has a throwing stub for it, used when this isn't compiled in.
+    target_sources(mc PRIVATE cpp/mc/GbmPathModel.cu cpp/cuda_utilities.cu)
+    target_compile_definitions(mc PRIVATE MC_HAS_CUDA)
+    target_link_libraries(mc PUBLIC CUDA::cudart)
+    set_property(TARGET mc PROPERTY CUDA_STANDARD 20)
+endif()
+
 # mc gtest suite
 add_executable(mc_test tests/cpp/test_gbm_path_model.cpp)
 target_link_libraries(mc_test gtest_main mc)
@@ -109,7 +118,7 @@ gtest_discover_tests(mc_test)
 if(CMAKE_CUDA_COMPILER AND CUDAToolkit_FOUND)
     # philox32x4 CUDA kernel gtest suite — cross-checks cpp/Philox32x4Cuda.cu
     # against the CPU philox32x4_batch in cpp/include/Philox32x4.h.
-    add_executable(philox32x4_cuda_test tests/cpp/test_philox32x4_cuda.cpp cpp/Philox32x4Cuda.cu)
+    add_executable(philox32x4_cuda_test tests/cpp/test_philox32x4_cuda.cpp cpp/Philox32x4Cuda.cu cpp/cuda_utilities.cu)
     target_include_directories(philox32x4_cuda_test PRIVATE "${CPP_INCLUDE_DIR}")
     target_link_libraries(philox32x4_cuda_test gtest_main CUDA::cudart)
     set_property(TARGET philox32x4_cuda_test PROPERTY CXX_STANDARD 20)
@@ -138,7 +147,7 @@ set_target_properties(splitmix64_py PROPERTIES
 
 if(CMAKE_CUDA_COMPILER AND CUDAToolkit_FOUND)
     # philox32x4 CUDA python bindings, importable as philox32x4_cuda_py.
-    pybind11_add_module(philox32x4_cuda_py cpp/philox32x4_cuda_pybind.cpp cpp/Philox32x4Cuda.cu)
+    pybind11_add_module(philox32x4_cuda_py cpp/philox32x4_cuda_pybind.cpp cpp/Philox32x4Cuda.cu cpp/cuda_utilities.cu)
     target_include_directories(philox32x4_cuda_py PRIVATE "${CPP_INCLUDE_DIR}")
     target_link_libraries(philox32x4_cuda_py PRIVATE CUDA::cudart)
     set_target_properties(philox32x4_cuda_py PROPERTIES

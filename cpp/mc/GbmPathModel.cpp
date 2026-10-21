@@ -4,8 +4,8 @@
 
 #include "Philox32x4.h"
 
-GbmPathModel::GbmPathModel(double S0, double r, double sigma, double T, size_t n_steps, size_t n_paths,
-                            uint32_t key0, uint32_t key1, uint32_t num_threads)
+GbmPathModel::GbmPathModel(double S0, double r, double sigma, double T, size_t n_steps, size_t n_paths, uint32_t key0,
+                           uint32_t key1, uint32_t num_threads)
     : S0_(S0),
       r_(r),
       sigma_(sigma),
@@ -26,8 +26,7 @@ PathArray GbmPathModel::simulate() const {
 
     // One normal per (step, path); time-major already matches PathArray's
     // layout, so there's no reshape between Philox's output and here.
-    auto z = philox32x4_normal_batch_mt<double>(static_cast<uint32_t>(n_steps_ * n_paths_), num_threads_, key0_,
-                                                 key1_);
+    auto z = philox32x4_normal_batch_mt<double>(static_cast<uint32_t>(n_steps_ * n_paths_), num_threads_, key0_, key1_);
 
     for (size_t t = 1; t <= n_steps_; ++t) {
         for (size_t path = 0; path < n_paths_; ++path) {
@@ -38,3 +37,13 @@ PathArray GbmPathModel::simulate() const {
     }
     return paths;
 }
+
+#ifndef MC_HAS_CUDA
+#include <stdexcept>
+
+// GPU implementation in GbmPathModel.cu, built only when CMake finds
+// a CUDA toolkit (see CMakeLists.txt).
+PathArray GbmPathModel::simulate_gpu() const {
+    throw std::logic_error("GPU support not compiled in (no CUDA toolkit at build time)");
+}
+#endif

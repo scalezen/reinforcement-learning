@@ -26,6 +26,7 @@ class HestonPathModel : public PathModel {
     double dt() const override { return T_ / static_cast<double>(n_steps_); }
 
     PathArray simulate() const override { throw std::logic_error("HestonPathModel::simulate not implemented yet"); }
+    PathArray simulate_gpu() const override { throw std::logic_error("HestonPathModel::simulate not implemented yet"); }
 
    private:
     // Heston needs 2 correlated factors (spot, variance)

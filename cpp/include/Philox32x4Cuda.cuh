@@ -10,8 +10,7 @@ constexpr uint32_t kNumRounds = 10;
 // philox32x4_device and kNumRounds are defined inline in the header file,
 // so other .cu/.cuh translation units (e.g. GbmPathModel.cuh) can call
 // philox32x4_device too without needing CUDA separable compilation.
-
-inline __device__ __forceinline__ void philox32x4_device(uint32_t counter[4], uint32_t key[2]) {
+__device__ __forceinline__ void philox32x4_device(uint32_t counter[4], uint32_t key[2]) {
     constexpr uint32_t M0 = 0xD2511F53u;
     constexpr uint32_t M1 = 0xCD9E8D57u;
     constexpr uint32_t W0 = 0x9E3779B9u;
